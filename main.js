@@ -39,7 +39,7 @@ const TPS_DISTANCE = 2.5;
 let playerPos = new THREE.Vector3();
 
 // --- CICLO DIA/NOITE — keyframes em extras.js ---
-const DAY_CYCLE_DURATION = 30;
+const DAY_CYCLE_DURATION = 180; // 180 para efeitos de visualização 300 para jogo!
 const DAY_PHASE_NAMES = ['Amanhecer', 'Meio-Dia', 'Por-do-Sol', 'Noite'];
 let sunLight, ambientLight, hemiLight;
 let mazeMaterials = [];
