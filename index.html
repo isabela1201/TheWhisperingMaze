@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Labirinto — Escapa se Conseguires</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-stars">🌟 🍄 🌟</div>
+  <div id="loading-title">Labirinto</div>
+  <div id="loading-subtitle">A carregar o labirinto…</div>
+  <div id="loading-bar-bg"><div id="loading-bar"></div></div>
+</div>
+
+<div id="canvas-container" tabindex="-1"></div>
+<div id="crosshair"></div>
+<div id="pause-hint">ESC — pausa</div>
+<div id="hud">WASD — mover &nbsp;·&nbsp; Rato — olhar &nbsp;·&nbsp; Shift — correr &nbsp;·&nbsp; F — lanterna &nbsp;·&nbsp; C — câmara</div>
+<div id="debug">W:▯ A:▯ S:▯ D:▯ | Lock:✗</div>
+
+<!-- Start overlay -->
+<div id="overlay">
+  <div class="card">
+    <span class="card-emoji">🍄</span>
+    <div class="tag">versão 2.0
+    </div>
+    <h1>The<br>Whispering Maze</h1>
+    <p>Explora o labirinto e descobre os segredos escondidos!</p>
+    <div class="divider">controlos</div>
+    <div class="keys">
+      <div class="key empty"></div>
+      <div class="key">W</div>
+      <div class="key empty"></div>
+      <div class="key">A</div>
+      <div class="key">S</div>
+      <div class="key">D</div>
+    </div>
+    <button id="start-btn">Entrar no labirinto</button>
+  </div>
+</div>
+
+<!-- Win screen -->
+<div id="win-screen" style="display:none;">
+  <div class="card">
+    <span class="card-emoji">🎉</span>
+    <h2>Escapaste!</h2>
+    <p>Conseguiste encontrar a saída.<br>Que aventureiro incrível!</p>
+    <div id="win-time"></div>
+    <button id="restart-btn">🔄 Tentar novamente</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="sky.js"></script>
+<script src="extras.js"></script>
+<script src="main.js"></script>
+
+</body>
+</html>
