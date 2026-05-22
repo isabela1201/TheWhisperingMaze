@@ -18,9 +18,26 @@
 </div>
 
 <div id="canvas-container" tabindex="-1"></div>
+<div id="progresso-historias-box">
+    <span id="emoji-slot-0" class="emoji-item" title="Fragmento do Novelo">⚪</span>
+    <span id="emoji-slot-1" class="emoji-item" title="Fragmento da Espada">⚪</span>
+    <span id="emoji-slot-2" class="emoji-item" title="Fragmento do Labirinto">⚪</span>
+</div>
+
+<div id="papiro-overlay" style="display: none;">
+    <div id="papiro-janela">
+        <button id="papiro-btn-fechar-x" onclick="fecharPapiro()">&times;</button>
+        
+        <h2 id="papiro-titulo">Fragmento Encontrado</h2>
+        <div id="papiro-texto">O texto do enigma vai aparecer aqui...</div>
+        
+        <div class="papiro-rodape">
+            <button id="papiro-btn-acao" onclick="fecharPapiro()">Compreendi o Enigma</button>
+        </div>
+    </div>
+</div>
 <div id="crosshair"></div>
-<div id="pause-hint">ESC — pausa</div>
-<div id="hud">WASD — mover &nbsp;·&nbsp; Rato — olhar &nbsp;·&nbsp; Shift — correr &nbsp;·&nbsp; F — lanterna &nbsp;·&nbsp; C — câmara</div>
+<div id="hud">WASD — mover &nbsp;·&nbsp; Rato — olhar &nbsp;·&nbsp; Shift — correr &nbsp;·&nbsp; F — lanterna &nbsp;·&nbsp; C — câmara &nbsp;·&nbsp; ESC-pausa</div>
 <div id="debug">W:▯ A:▯ S:▯ D:▯ | Lock:✗</div>
 
 <!-- Start overlay -->

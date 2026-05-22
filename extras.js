@@ -7,7 +7,6 @@
 // tempo de vida actual e máximo, durações de fade).
 // Posições e cores guardadas em Float32Arrays tipados — estrutura de dados eficiente.
 // Com AdditiveBlending, cor (0,0,0) = invisível → fade in/out via escala de cor.
-
 function createWhispers() {
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(WHISPER_COUNT * 3);
@@ -52,30 +51,284 @@ function createWhispers() {
 }
 
 // --- FIX B: Corpo geométrico do jogador (Hierarquia de Objetos — Slides 03) ---
-// Dois meshes independentes unidos num THREE.Group, que actua como pivot comum.
-// Mover o Group move torso + cabeça juntos → demonstra transformação hierárquica.
+// Vários meshes independentes (tronco, toga, cabeça, cabelo, barba, braços e pernas)
+// unidos num THREE.Group com articulações (Joints) para podermos simular animações.
 function createPlayerBody() {
-    const mat = new THREE.MeshStandardMaterial({
-        color: 0x8899bb,
-        roughness: 0.85,
-        metalness: 0.0
+    // Materiais PBR com Flat Shading para o look low-poly
+    const skinMat = new THREE.MeshStandardMaterial({
+        color: 0xdca889, // Tom de pele mediterrânico bronzeado
+        roughness: 0.8,
+        metalness: 0.05,
+        flatShading: true
     });
 
-    // Torso (cilindro)
-    const torsoGeo = new THREE.CylinderGeometry(0.22, 0.22, 1.1, 12);
-    const torso = new THREE.Mesh(torsoGeo, mat);
-    torso.castShadow = true;
+    const togaMat = new THREE.MeshStandardMaterial({
+        color: 0xf5f5fa, // Toga branca
+        roughness: 0.9,
+        metalness: 0.0,
+        flatShading: true
+    });
 
-    // Cabeça (esfera) — posição relativa ao Group, não ao mundo
-    const headGeo = new THREE.SphereGeometry(0.25, 12, 8);
-    const head = new THREE.Mesh(headGeo, mat);
-    head.position.y = 0.75;
-    head.castShadow = true;
+    const hairMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1513, // Cabelo escuro (castanho quase preto)
+        roughness: 0.85,
+        metalness: 0.0,
+        flatShading: true
+    });
 
-    // Group = hierarquia: translação/rotação do Group afecta ambos os filhos
+    const leatherMat = new THREE.MeshStandardMaterial({
+        color: 0x4a3225, // Sandálias / Cinto de couro
+        roughness: 0.9,
+        metalness: 0.0,
+        flatShading: true
+    });
+
     playerBody = new THREE.Group();
+
+    // --- ARTICULAÇÕES (Joints) ---
+    
+    // 1. Articulações das Coxas (Hip Joints) - Pivot no topo da coxa: y = 0.675
+    const leftLegJoint = new THREE.Group();
+    leftLegJoint.position.set(-0.14, 0.675, 0);
+    playerBody.add(leftLegJoint);
+    playerBody.leftLegJoint = leftLegJoint;
+
+    const rightLegJoint = new THREE.Group();
+    rightLegJoint.position.set(0.14, 0.675, 0);
+    playerBody.add(rightLegJoint);
+    playerBody.rightLegJoint = rightLegJoint;
+
+    // 2. Articulações dos Ombros (Shoulder Joints)
+    const leftArmJoint = new THREE.Group();
+    leftArmJoint.position.set(-0.23, 1.48, 0);
+    leftArmJoint.rotation.set(0.05, 0, 0.12); // Posição de repouso
+    playerBody.add(leftArmJoint);
+    playerBody.leftArmJoint = leftArmJoint;
+
+    const rightArmJoint = new THREE.Group();
+    rightArmJoint.position.set(0.24, 1.48, 0);
+    rightArmJoint.rotation.set(0.05, 0, -0.15); // Posição de repouso
+    playerBody.add(rightArmJoint);
+    playerBody.rightArmJoint = rightArmJoint;
+
+    // 3. Articulações dos Cotovelos (Elbow Joints)
+    const leftElbowJoint = new THREE.Group();
+    leftElbowJoint.position.set(0, -0.3, 0.02);
+    leftElbowJoint.rotation.set(0.1, 0, 0);
+    leftArmJoint.add(leftElbowJoint);
+    playerBody.leftElbowJoint = leftElbowJoint;
+
+    const rightElbowJoint = new THREE.Group();
+    rightElbowJoint.position.set(0, -0.35, 0.02);
+    rightElbowJoint.rotation.set(0.1, 0, 0);
+    rightArmJoint.add(rightElbowJoint);
+    playerBody.rightElbowJoint = rightElbowJoint;
+
+    // --- MESHES ASSOCIADAS ---
+
+    // Pernas (Cilindros deslocados para baixo do pivot)
+    const legGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.65, 5);
+    
+    const leftLeg = new THREE.Mesh(legGeo, skinMat);
+    leftLeg.position.set(0, -0.325, 0);
+    leftLeg.castShadow = true;
+    leftLeg.receiveShadow = true;
+    leftLegJoint.add(leftLeg);
+
+    const rightLeg = new THREE.Mesh(legGeo, skinMat);
+    rightLeg.position.set(0, -0.325, 0);
+    rightLeg.castShadow = true;
+    rightLeg.receiveShadow = true;
+    rightLegJoint.add(rightLeg);
+
+    // Sandálias
+    const footGeo = new THREE.BoxGeometry(0.09, 0.07, 0.18);
+    
+    const leftFoot = new THREE.Mesh(footGeo, leatherMat);
+    leftFoot.position.set(0, -0.64, 0.04);
+    leftFoot.castShadow = true;
+    leftFoot.receiveShadow = true;
+    leftLegJoint.add(leftFoot);
+
+    const rightFoot = new THREE.Mesh(footGeo, leatherMat);
+    rightFoot.position.set(0, -0.64, 0.04);
+    rightFoot.castShadow = true;
+    rightFoot.receiveShadow = true;
+    rightLegJoint.add(rightFoot);
+
+    // Braços (Cilindros deslocados para baixo do ombro/cotovelo)
+    const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.3, 5), skinMat);
+    leftUpperArm.position.set(0, -0.15, 0);
+    leftUpperArm.castShadow = true;
+    leftArmJoint.add(leftUpperArm);
+
+    const leftForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.32, 5), skinMat);
+    leftForearm.position.set(0, -0.16, 0.02);
+    leftForearm.castShadow = true;
+    leftElbowJoint.add(leftForearm);
+
+    const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 4, 4), skinMat);
+    leftHand.position.set(0, -0.32, 0.04);
+    leftHand.castShadow = true;
+    leftElbowJoint.add(leftHand);
+
+    const rightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35, 5), skinMat);
+    rightUpperArm.position.set(0, -0.175, 0);
+    rightUpperArm.castShadow = true;
+    rightArmJoint.add(rightUpperArm);
+
+    const rightForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.32, 5), skinMat);
+    rightForearm.position.set(0, -0.16, 0.02);
+    rightForearm.castShadow = true;
+    rightElbowJoint.add(rightForearm);
+
+    const rightHand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 4, 4), skinMat);
+    rightHand.position.set(0, -0.32, 0.04);
+    rightHand.castShadow = true;
+    rightElbowJoint.add(rightHand);
+    playerBody.rightHand = rightHand; // Guardar referência para o SpotLight em game.js
+
+    // Tocha geométrica low poly na mão direita
+    const torchMesh = new THREE.Group();
+    
+    const torchHandle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.02, 0.015, 0.25, 5),
+        new THREE.MeshStandardMaterial({ color: 0x4a2e15, roughness: 0.9, flatShading: true })
+    );
+    torchHandle.position.y = 0.125;
+    torchHandle.castShadow = true;
+    torchMesh.add(torchHandle);
+
+    const torchFlame = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.05, 0),
+        new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xff5500, emissiveIntensity: 1, flatShading: true })
+    );
+    torchFlame.position.y = 0.27;
+    torchMesh.add(torchFlame);
+
+    // Posicionar a tocha na mão
+    torchMesh.position.copy(rightHand.position);
+    torchMesh.rotation.x = Math.PI / 2.5; // Inclinada para a frente
+    rightElbowJoint.add(torchMesh);
+    playerBody.torchMesh = torchMesh;
+
+    // --- ELEMENTOS DO CORPO CENTRAL ---
+
+    // Saia da Toga
+    const skirtGeo = new THREE.CylinderGeometry(0.21, 0.25, 0.65, 6);
+    const skirt = new THREE.Mesh(skirtGeo, togaMat);
+    skirt.position.set(0, 0.9, 0);
+    skirt.castShadow = true;
+    skirt.receiveShadow = true;
+    playerBody.add(skirt);
+
+    // Pregas na parte de trás da saia da toga
+    const foldGeo = new THREE.BoxGeometry(0.05, 0.62, 0.04);
+    
+    const skirtFoldL = new THREE.Mesh(foldGeo, togaMat);
+    skirtFoldL.position.set(-0.1, 0.9, -0.19);
+    skirtFoldL.rotation.set(0.05, 0.1, 0.05);
+    skirtFoldL.castShadow = true;
+    playerBody.add(skirtFoldL);
+
+    const skirtFoldR = new THREE.Mesh(foldGeo, togaMat);
+    skirtFoldR.position.set(0.1, 0.9, -0.19);
+    skirtFoldR.rotation.set(0.05, -0.1, -0.05);
+    skirtFoldR.castShadow = true;
+    playerBody.add(skirtFoldR);
+
+    const skirtFoldC = new THREE.Mesh(foldGeo, togaMat);
+    skirtFoldC.position.set(0, 0.9, -0.21);
+    skirtFoldC.rotation.set(0.05, 0, 0);
+    skirtFoldC.castShadow = true;
+    playerBody.add(skirtFoldC);
+
+    // Torso (Pele)
+    const torsoGeo = new THREE.CylinderGeometry(0.18, 0.20, 0.45, 6);
+    const torso = new THREE.Mesh(torsoGeo, skinMat);
+    torso.position.set(0, 1.35, 0);
+    torso.castShadow = true;
+    torso.receiveShadow = true;
     playerBody.add(torso);
+    playerBody.torso = torso;
+
+    // Alça da Toga (Ajuste: mais baixa conforme feedback)
+    const shoulderToga = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.24), togaMat);
+    shoulderToga.position.set(-0.15, 1.40, 0);
+    shoulderToga.rotation.set(0, 0, 0.15);
+    shoulderToga.castShadow = true;
+    playerBody.add(shoulderToga);
+
+    // Pregas diagonais (Costas e Frente)
+    const backFold1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.05), togaMat);
+    backFold1.position.set(-0.06, 1.32, -0.07);
+    backFold1.rotation.set(0.1, 0.0, -0.45);
+    backFold1.castShadow = true;
+    playerBody.add(backFold1);
+
+    const backFold2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.05), togaMat);
+    backFold2.position.set(-0.01, 1.28, -0.08);
+    backFold2.rotation.set(0.15, 0.1, -0.42);
+    backFold2.castShadow = true;
+    playerBody.add(backFold2);
+
+    const frontFold1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.05), togaMat);
+    frontFold1.position.set(-0.06, 1.32, 0.07);
+    frontFold1.rotation.set(-0.1, 0.0, 0.45);
+    frontFold1.castShadow = true;
+    playerBody.add(frontFold1);
+
+    // Cinto
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.07, 6), leatherMat);
+    belt.position.set(0, 1.15, 0);
+    belt.castShadow = true;
+    playerBody.add(belt);
+
+    // Pescoço
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.12, 5), skinMat);
+    neck.position.set(0, 1.58, 0);
+    neck.castShadow = true;
+    neck.receiveShadow = true;
+    playerBody.add(neck);
+
+    // Cabeça
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 6), skinMat);
+    head.position.set(0, 1.69, 0);
+    head.castShadow = true;
+    head.receiveShadow = true;
     playerBody.add(head);
+
+    // Cabelo
+    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.12, 5, 5), hairMat);
+    hairTop.position.set(0, 1.77, -0.02);
+    hairTop.scale.set(1.15, 0.85, 1.15);
+    hairTop.castShadow = true;
+    playerBody.add(hairTop);
+
+    const hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.16, 0.09), hairMat);
+    hairBack.position.set(0, 1.71, -0.1);
+    hairBack.rotation.set(-0.1, 0, 0);
+    hairBack.castShadow = true;
+    playerBody.add(hairBack);
+
+    const sideburnL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.07), hairMat);
+    sideburnL.position.set(-0.11, 1.68, -0.02);
+    sideburnL.castShadow = true;
+    playerBody.add(sideburnL);
+
+    const sideburnR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.07), hairMat);
+    sideburnR.position.set(0.11, 1.68, -0.02);
+    sideburnR.castShadow = true;
+    playerBody.add(sideburnR);
+
+    // Barba
+    const beardJaw = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.11), hairMat);
+    beardJaw.position.set(0, 1.61, 0.04);
+    beardJaw.rotation.set(0.1, 0, 0);
+    beardJaw.castShadow = true;
+    playerBody.add(beardJaw);
+
+    playerBody.visible = false;
     scene.add(playerBody);
 }
 
@@ -133,6 +386,94 @@ function updateWhispers(t, delta) {
     whispers.geometry.attributes.color.needsUpdate = true;
 }
 
+// --- ANIMAÇÃO DE CAMINHADA PROCEDIMENTAL (Walk Cycle) ---
+// Roda as pernas e braços em oposição ao andar e lerpa suavemente de volta ao repouso se parado.
+let walkTimer = 0;
+
+function updatePlayerAnimation(delta) {
+    if (!playerBody || !playerBody.visible) return;
+
+    // Mostrar/esconder tocha low poly conforme o estado
+    if (typeof torchOn !== 'undefined' && playerBody.torchMesh) {
+        playerBody.torchMesh.visible = torchOn;
+    }
+
+    // Detetar se o modo de voo está ativo
+    const isFlying = typeof flyMode !== 'undefined' && flyMode;
+
+    // Detetar se o jogador está a mover-se pelas teclas WASD (declaradas globalmente em game.js)
+    const isMoving = typeof KEY !== 'undefined' && (KEY.w || KEY.s || KEY.a || KEY.d);
+
+    // Ajustes de velocidade e amplitude baseado se está a correr
+    const isSprinting = typeof KEY !== 'undefined' && KEY.shift;
+    const swingSpeed = isSprinting ? 12 : 8.5;
+    const maxLegSwing = isSprinting ? 0.65 : 0.42;
+    const maxArmSwing = isSprinting ? 0.55 : 0.35;
+
+    if (isFlying) {
+        // Animação de flutuação suave no ar
+        const floatTime = clock.getElapsedTime() * 2.0; // freq suave
+        
+        // Posição de pernas relaxadas (ligeiramente inclinadas para trás)
+        const targetLegRot = 0.15 + Math.sin(floatTime) * 0.05;
+        playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftLegJoint.rotation.x, targetLegRot, 0.1);
+        playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightLegJoint.rotation.x, targetLegRot - 0.05, 0.1);
+
+        // Braços ligeiramente abertos para os lados e a flutuar
+        const targetArmRotX = 0.2 + Math.cos(floatTime) * 0.08;
+        const targetArmRotZLeft = 0.3 + Math.sin(floatTime) * 0.05;
+        const targetArmRotZRight = -0.3 - Math.sin(floatTime) * 0.05;
+
+        playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.x, targetArmRotX, 0.1);
+        playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.x, targetArmRotX, 0.1);
+        playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, targetArmRotZLeft, 0.1);
+        playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, targetArmRotZRight, 0.1);
+
+        // Cotovelos relaxados
+        playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftElbowJoint.rotation.x, 0.25, 0.1);
+        playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightElbowJoint.rotation.x, 0.25, 0.1);
+
+        playerBody.torso.rotation.y = THREE.MathUtils.lerp(playerBody.torso.rotation.y, 0, 0.1);
+    } else if (isMoving) {
+        walkTimer += delta * swingSpeed;
+        
+        // Oscilar coxas/pernas (eixo X)
+        playerBody.leftLegJoint.rotation.x = Math.sin(walkTimer) * maxLegSwing;
+        playerBody.rightLegJoint.rotation.x = -Math.sin(walkTimer) * maxLegSwing;
+
+        // Oscilar braços no ombro (oposto às pernas)
+        playerBody.rightArmJoint.rotation.x = 0.05 + Math.sin(walkTimer) * maxArmSwing;
+        playerBody.leftArmJoint.rotation.x = 0.05 - Math.sin(walkTimer) * maxArmSwing;
+
+        // LERP braços em Z de volta à posição de repouso ao andar
+        playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, -0.15, 0.1);
+        playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, 0.12, 0.1);
+
+        // Oscilar a dobra dos cotovelos (aumenta o dinamismo)
+        playerBody.rightElbowJoint.rotation.x = 0.1 + (Math.sin(walkTimer + Math.PI/2) * 0.15 + 0.15);
+        playerBody.leftElbowJoint.rotation.x = 0.1 + (Math.sin(-walkTimer + Math.PI/2) * 0.15 + 0.15);
+
+        // Ligeira torção no tronco/ancas
+        playerBody.torso.rotation.y = Math.sin(walkTimer) * 0.06;
+    } else {
+        // LERP suave de volta à posição neutra/idle
+        const lerpFactor = 0.18;
+        playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftLegJoint.rotation.x, 0, lerpFactor);
+        playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightLegJoint.rotation.x, 0, lerpFactor);
+        
+        playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.x, 0.05, lerpFactor);
+        playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.x, 0.05, lerpFactor);
+
+        playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, -0.15, lerpFactor);
+        playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, 0.12, lerpFactor);
+
+        playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightElbowJoint.rotation.x, 0.1, lerpFactor);
+        playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftElbowJoint.rotation.x, 0.1, lerpFactor);
+
+        playerBody.torso.rotation.y = THREE.MathUtils.lerp(playerBody.torso.rotation.y, 0, lerpFactor);
+    }
+}
+
 // --- ANIMAÇÕES GERAIS (vento + delegar partículas) ---
 function updateAnimations() {
     const t = clock.getElapsedTime();
@@ -140,7 +481,8 @@ function updateAnimations() {
     whisperPrevTime = t;
 
     updateWhispers(t, delta);
-    updateDayNight(t);     // ciclo dia/noite
+    updateDayNight(t);           // ciclo dia/noite
+    updatePlayerAnimation(delta); // animação procedimental do boneco
 
     // Vegetação (Abanar com vento)
     vegetation.forEach(plant => {
