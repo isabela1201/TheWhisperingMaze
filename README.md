@@ -87,11 +87,21 @@ Sem frameworks, sem bundlers, sem dependências além do Three.js.
 
 ## Arquitetura
 
+**Estrutura modular do projeto:**
+- `config.js` — Definições e constantes de jogo (Ex: dados das histórias).
+- `state.js` — Declaração de variáveis globais partilhadas.
+- `ui.js` — Controlo de overlays (papiros), notificações e depuração.
+- `sky.js` — Domínio celeste procedural (sol, lua, nuvens, estrelas).
+- `particles.js` — Sistema de pirilampos/whispers otimizado.
+- `player.js` — Configuração do jogador (FPS/TPS), corpo, lanterna na mão e colisões.
+- `environment.js` — Iluminação global, ciclo dia/noite e geração otimizada de floresta/relva.
+- `main.js` — Ponto de entrada que inicializa a cena Three.js e gere o ciclo principal.
+
 **Ordem de execução:**
-1. `init()` → cria cena, câmara, renderer, chão, luzes, input, partículas, corpo, céu, labirinto
-2. `animate()` → loop com `requestAnimationFrame`: movimento → câmara → vitória → corpo → lanterna → render
-3. `updateAnimations()` → partículas + dia/noite + vegetação (em `extras.js`)
-4. `SkyEnvironment.update()` → posição de Sol, Lua, estrelas, nuvens (em `sky.js`)
+1. `init()` (em `main.js`) → cria cena, câmara, renderer com rácio de píxeis controlado, chão, inicializa luzes, partículas, corpo do jogador, céu e labirinto.
+2. `animate()` (em `main.js`) → loop com `requestAnimationFrame`: movimento → animações (pirilampos, dia/noite, corpo) → câmara → vitória → render.
+3. `updateAnimations()` (em `environment.js`) → delega as atualizações procedimentais dos pirilampos (`particles.js`), do ciclo dia/noite (`environment.js`) e do corpo (`player.js`).
+4. `SkyEnvironment.update()` (em `sky.js`) → posição orbital de Sol, Lua, estrelas e vento nas nuvens.
 
 ## Agradecimentos e Fontes
 

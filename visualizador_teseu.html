@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualizador da Personagem</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #ffffff;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <strong>Visualizador do Jogador</strong><br>
+        Arrasta o rato para rodar | Scroll para zoom | Botão direito para mover
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls, clock;
+        let playerBody;
+        let walkTimer = 0;
+
+        init();
+        animate();
+
+        function init() {
+            // 1. Configurar Cena e Ecrã
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2a2b36); // Fundo escuro azulado
+            
+            // Nevoeiro subtil para dar profundidade
+            scene.fog = new THREE.Fog(0x2a2b36, 3, 15);
+
+            clock = new THREE.Clock();
+
+            // 2. Câmara
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(2, 1.5, 3); // Posição inicial da câmara a olhar de lado/frente
+
+            // 3. Renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // 4. Controlos Orbitais (Magia para ver de todos os lados)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 1, 0); // Focar no peito do boneco
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // 5. Iluminação
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xe0f0ff, 0x444444, 0.4);
+            scene.add(hemiLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfff0f0, 1.0);
+            sunLight.position.set(5, 10, 5);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            scene.add(sunLight);
+
+            // 6. Chão (Pedestal/Plano)
+            const floorGeo = new THREE.CylinderGeometry(2, 2, 0.1, 32);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.y = -0.05;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // 7. Criar a Personagem Principal
+            createPlayerBody();
+
+            // Ajuste do Resize da Janela
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createPlayerBody() {
+            // --- MATERIAIS ---
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xdca889, roughness: 0.8, flatShading: true });
+            const togaMat = new THREE.MeshStandardMaterial({ color: 0xf5f5fa, roughness: 0.9, flatShading: true });
+            const hairMat = new THREE.MeshStandardMaterial({ color: 0x1a1513, roughness: 0.85, flatShading: true });
+            const leatherMat = new THREE.MeshStandardMaterial({ color: 0x4a3225, roughness: 0.9, flatShading: true });
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3, metalness: 0.8, flatShading: true });
+
+            playerBody = new THREE.Group();
+
+            // --- ARTICULAÇÕES (Joints) ---
+            const leftLegJoint = new THREE.Group(); leftLegJoint.position.set(-0.14, 0.675, 0);
+            const rightLegJoint = new THREE.Group(); rightLegJoint.position.set(0.14, 0.675, 0);
+            const leftArmJoint = new THREE.Group(); leftArmJoint.position.set(-0.24, 1.48, 0); leftArmJoint.rotation.set(0.05, 0, 0.02);
+            const rightArmJoint = new THREE.Group(); rightArmJoint.position.set(0.24, 1.48, 0); rightArmJoint.rotation.set(0.05, 0, -0.02);
+            const leftShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 6), skinMat); leftShoulder.castShadow = true; leftArmJoint.add(leftShoulder);
+            const rightShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 6), skinMat); rightShoulder.castShadow = true; rightArmJoint.add(rightShoulder);
+            
+            const leftElbowJoint = new THREE.Group(); leftElbowJoint.position.set(0, -0.3, 0.02); leftElbowJoint.rotation.set(0.1, 0, 0);
+            const rightElbowJoint = new THREE.Group(); rightElbowJoint.position.set(0, -0.35, 0.02); rightElbowJoint.rotation.set(0.1, 0, 0);
+
+            playerBody.add(leftLegJoint, rightLegJoint, leftArmJoint, rightArmJoint);
+            leftArmJoint.add(leftElbowJoint); rightArmJoint.add(rightElbowJoint);
+
+            playerBody.leftLegJoint = leftLegJoint; playerBody.rightLegJoint = rightLegJoint;
+            playerBody.leftArmJoint = leftArmJoint; playerBody.rightArmJoint = rightArmJoint;
+            playerBody.leftElbowJoint = leftElbowJoint; playerBody.rightElbowJoint = rightElbowJoint;
+
+            // --- PERNAS E PÉS ---
+            const legGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.65, 5);
+            const footGeo = new THREE.BoxGeometry(0.09, 0.07, 0.18);
+
+            const leftLeg = new THREE.Mesh(legGeo, skinMat); leftLeg.position.set(0, -0.325, 0); leftLeg.castShadow = true;
+            const rightLeg = new THREE.Mesh(legGeo, skinMat); rightLeg.position.set(0, -0.325, 0); rightLeg.castShadow = true;
+            leftLegJoint.add(leftLeg); rightLegJoint.add(rightLeg);
+
+            const leftFoot = new THREE.Mesh(footGeo, leatherMat); leftFoot.position.set(0, -0.64, 0.04); leftFoot.castShadow = true;
+            const rightFoot = new THREE.Mesh(footGeo, leatherMat); rightFoot.position.set(0, -0.64, 0.04); rightFoot.castShadow = true;
+            leftLegJoint.add(leftFoot); rightLegJoint.add(rightFoot);
+
+            // --- BRAÇOS E MÃOS ---
+            const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.3, 5), skinMat); leftUpperArm.position.set(0, -0.15, 0); leftUpperArm.castShadow = true;
+            const leftArmband = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.06, 0.04, 6), goldMat); leftArmband.position.set(0, -0.05, 0); leftArmband.castShadow = true; leftUpperArm.add(leftArmband);
+            const leftForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.32, 5), skinMat); leftForearm.position.set(0, -0.16, 0.02); leftForearm.castShadow = true;
+            const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 4, 4), skinMat); leftHand.position.set(0, -0.32, 0.04); leftHand.castShadow = true;
+            
+            leftArmJoint.add(leftUpperArm); leftElbowJoint.add(leftForearm, leftHand);
+
+            const rightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.35, 5), skinMat); rightUpperArm.position.set(0, -0.175, 0); rightUpperArm.castShadow = true;
+            const rightArmband = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.06, 0.04, 6), goldMat); rightArmband.position.set(0, -0.05, 0); rightArmband.castShadow = true; rightUpperArm.add(rightArmband);
+            const rightForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.32, 5), skinMat); rightForearm.position.set(0, -0.16, 0.02); rightForearm.castShadow = true;
+            const rightHand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 4, 4), skinMat); rightHand.position.set(0, -0.32, 0.04); rightHand.castShadow = true;
+            
+            rightArmJoint.add(rightUpperArm); rightElbowJoint.add(rightForearm, rightHand);
+
+            // --- TOCHA ---
+            const torchMesh = new THREE.Group();
+            const torchHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.015, 0.25, 5), new THREE.MeshStandardMaterial({ color: 0x4a2e15, roughness: 0.9, flatShading: true }));
+            torchHandle.position.y = 0.125; torchHandle.castShadow = true;
+            
+            const torchFlame = new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xff5500, emissiveIntensity: 1, flatShading: true }));
+            torchFlame.position.y = 0.27;
+
+            // Luz Real na Tocha para o Visualizador
+            const torchLight = new THREE.PointLight(0xffaa00, 1, 3);
+            torchLight.position.y = 0.3;
+            torchMesh.add(torchLight);
+
+            torchMesh.add(torchHandle, torchFlame);
+            torchMesh.position.copy(rightHand.position);
+            torchMesh.rotation.x = Math.PI / 2.5;
+            rightElbowJoint.add(torchMesh);
+
+            // --- CORPO E ROUPA ---
+            const torsoGeo = new THREE.CylinderGeometry(0.18, 0.20, 0.45, 6);
+            const torso = new THREE.Mesh(torsoGeo, skinMat); torso.position.set(0, 1.35, 0); torso.castShadow = true;
+            playerBody.add(torso); playerBody.torso = torso;
+
+            const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.25, 0.65, 6), togaMat); skirt.position.set(0, 0.9, 0); skirt.castShadow = true; playerBody.add(skirt);
+            
+            const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.07, 6), leatherMat); belt.position.set(0, 1.15, 0); belt.castShadow = true; playerBody.add(belt);
+            const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.04), goldMat); buckle.position.set(0, 1.15, 0.20); buckle.castShadow = true; playerBody.add(buckle);
+            const fibula = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 6), goldMat); fibula.position.set(-0.15, 1.45, 0.12); fibula.rotation.x = Math.PI/2; fibula.castShadow = true; playerBody.add(fibula);
+            
+            const shoulderToga = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.24), togaMat); shoulderToga.position.set(-0.15, 1.40, 0); shoulderToga.rotation.set(0, 0, 0.15); shoulderToga.castShadow = true; playerBody.add(shoulderToga);
+
+            // --- CABEÇA ---
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.12, 5), skinMat); neck.position.set(0, 1.58, 0); neck.castShadow = true; playerBody.add(neck);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 6), skinMat); head.position.set(0, 1.69, 0); head.castShadow = true; playerBody.add(head);
+
+            const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.12, 5, 5), hairMat); hairTop.position.set(0, 1.77, -0.02); hairTop.scale.set(1.15, 0.85, 1.15); hairTop.castShadow = true; playerBody.add(hairTop);
+            const beardJaw = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.11), hairMat); beardJaw.position.set(0, 1.61, 0.04); beardJaw.rotation.set(0.1, 0, 0); beardJaw.castShadow = true; playerBody.add(beardJaw);
+
+            playerBody.position.y = 0; // Colocar no chão da cena local
+            scene.add(playerBody);
+        }
+
+        // Simula uma caminhada contínua para observação
+        function updatePlayerAnimation(delta) {
+            if (!playerBody) return;
+
+            walkTimer += delta * 8.5; // Velocidade normal de caminhada
+            const maxLegSwing = 0.42;
+            const maxArmSwing = 0.35;
+
+            playerBody.leftLegJoint.rotation.x = Math.sin(walkTimer) * maxLegSwing;
+            playerBody.rightLegJoint.rotation.x = -Math.sin(walkTimer) * maxLegSwing;
+
+            playerBody.rightArmJoint.rotation.x = 0.05 + Math.sin(walkTimer) * maxArmSwing;
+            playerBody.leftArmJoint.rotation.x = 0.05 - Math.sin(walkTimer) * maxArmSwing;
+
+            playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, -0.02, 0.1);
+            playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, 0.02, 0.1);
+
+            playerBody.rightElbowJoint.rotation.x = 0.1 + (Math.sin(walkTimer + Math.PI/2) * 0.15 + 0.15);
+            playerBody.leftElbowJoint.rotation.x = 0.1 + (Math.sin(-walkTimer + Math.PI/2) * 0.15 + 0.15);
+
+            playerBody.torso.rotation.y = Math.sin(walkTimer) * 0.06;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            
+            updatePlayerAnimation(delta);
+            controls.update(); // Atualiza a câmara com o damping (suavização)
+            
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

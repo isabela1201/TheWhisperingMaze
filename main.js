@@ -1,91 +1,6 @@
-// =============================================================================
-// game.js — HISTORIAS
-// =============================================================================
+// main.js
+// Main entry point: handles game initialization, event listeners, maze model loading, and the render loop
 
-const DADOS_HISTORIAS = [
-    {
-        titulo: "📜 Fragmento I — O Fio de Ariadne",
-        texto: "\"O novelo de lã azul não brilha por acaso. Segue o rastro da coragem. Onde o Minotauro range os dentes, a salvação vira as costas à criatura e aponta para o nascer do sol...\"",
-        emoji: "🧶"
-    },
-    {
-        titulo: "⚔️ Fragmento II — A Lâmina de Creta",
-        texto: "\"O ferro cretense corta o mito. Quando a lâmina reflectir o crepúsculo, o caminho não está no sangue, mas sim no trilho onde a água flui contra a corrente...\"",
-        emoji: "🗡️"
-    },
-    {
-        titulo: "🏛️ Fragmento III — O Segredo de Dédalo",
-        texto: "\"As paredes de Dédalo enganam os olhos, mas não o coração. Onde os Cornos Sagrados tocam o céu, o fio termina e a liberdade encontra-se nas sombras do Norte...\"",
-        emoji: "🐂"
-    }
-];
-
-let idHistoriaAtivaAtualmente = null; // Controla qual o papiro aberto
-
-
-// =============================================================================
-// game.js — Core: inicialização, input, câmara, movimento, colisão, render loop
-// =============================================================================
-
-const CONFIG = {
-    MODEL_PATH: 'labirintov3.glb',
-    PLAYER_HEIGHT: 1.6,
-    PLAYER_SPEED: 0.12,
-    PLAYER_SPRINT: 0.22,
-    COLLISION_MARGIN: 0.25,
-    FOG_COLOR: 0xE0F7FA,
-    EXIT_RADIUS: 1.5
-};
-
-let paused = false;
-let scene, camera, renderer, clock;
-let gameStarted = false, gameWon = false;
-let mazeObjects = [], exitPos = new THREE.Vector3(10, 0, 10);
-
-// --- PARTÍCULAS (Whispers / Pirilampos) — lógica em extras.js ---
-const WHISPER_COUNT = 200;
-const WHISPER_SPREAD = 60;
-let whispers, whisperMeta = [], whisperPrevTime = 0;
-
-let vegetation = [];
-let doors = [];
-let bobTimer = 0;
-
-// --- FIX B: CORPO DO JOGADOR — criado em extras.js ---
-let playerBody = null;
-
-// --- LANTERNA (Slides 05 — SpotLight, atenuação quadrática 1/d²) ---
-let torch = null;
-let torchOn = true; // começa ligada
-
-// --- CÂMARA FPS / TPS (Slides 04 — View Matrix / Projeção) ---
-let cameraMode = 'FPS';
-const TPS_DISTANCE = 2.5;
-let playerPos = new THREE.Vector3();
-
-// --- CICLO DIA/NOITE — keyframes em extras.js ---
-const DAY_CYCLE_DURATION = 360; // Alterado para 1m 30s
-const DAY_PHASE_NAMES = ['Amanhecer', 'Meio-Dia', 'Por-do-Sol', 'Noite'];
-let sunLight, ambientLight, hemiLight;
-let mazeMaterials = [];
-let DAY_PHASES = null;
-let currentPhase = '';
-let whisperBrightnessMult = 1.0;
-
-// KEY agora inclui 'space' e 'control' para o modo de voo
-const KEY = { w: false, a: false, s: false, d: false, shift: false, space: false, control: false };
-let yaw = 0, pitch = 0, isLocked = false;
-let flyMode = false;
-
-// --- SISTEMA DE COLECIONÁVEIS ---
-let colecionaveis = []; // Guarda os dados dos 3 colecionáveis
-let aneisLuminosos = []; // Guarda as malhas dos anéis para animar no loop
-let historiasColetadas = [false, false, false]; // Estado do progresso
-
-
-// =============================================================================
-// FUNÇÃO UNIVERSAL PARA ASSETS FIXOS (Com Auto-Alinhamento no Chão)
-// =============================================================================
 function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColecionavel = false, idColecionavel = null) {
     const loader = new THREE.GLTFLoader();
     
@@ -93,7 +8,7 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
         const model = gltf.scene;
         model.scale.setScalar(escala);
         
-        // Calcular Bounding Box para alinhamento no chão
+        // Calculate Bounding Box for floor alignment
         model.traverse((child) => {
             if (child.isMesh) child.geometry.computeBoundingBox();
         });
@@ -105,15 +20,17 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
         model.position.set(posX, alturaCompensada, posZ);
         model.rotation.y = grausY * (Math.PI / 180);
         
+        model.position.y = -0.5;
+        
         scene.add(model);
         mazeObjects.push(model);
 
-        // Se for um Colecionável, cria o Efeito Luminoso (Auréola)
+        // If collectible, create glow ring
         if (isColecionavel) {
             const ringGeo = new THREE.RingGeometry(size.x * 0.6, size.x * 0.8, 32);
             const ringMat = new THREE.MeshStandardMaterial({
-                color: 0x00aaff,          // Brilho azul ciano
-                emissive: 0x00aaff,       // Brilho próprio
+                color: 0x00aaff,          // Soft cyan glow
+                emissive: 0x00aaff,
                 emissiveIntensity: 2.0,
                 side: THREE.DoubleSide,
                 transparent: true,
@@ -121,13 +38,11 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
             });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
             
-            // Rodar o anel para ficar deitado no chão (X = -90 graus)
             ringMesh.rotation.x = -Math.PI / 2;
             ringMesh.position.set(posX, alturaCompensada + 0.05, posZ);
             
             scene.add(ringMesh);
             
-            // Guardar uma referência ao anel e aos dados do colecionável
             ringMesh.userData = { id: idColecionavel, baseY: ringMesh.position.y };
             aneisLuminosos.push(ringMesh);
             
@@ -140,13 +55,14 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
             });
         }
 
-        // Sombras normais
+        // Shadows config
         model.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
                 if (child.material && child.material.map) {
-                    child.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                    // Limit anisotropy to 4 to save GPU resources
+                    child.material.map.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
                 }
             }
         });
@@ -154,54 +70,21 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
     }, undefined, (error) => console.error(error));
 }
 
-// =============================================================================
-// FUNÇÕES DOS PAPIROS
-// =============================================================================
-function abrirPapiroHistoria(id) {
-    idHistoriaAtivaAtualmente = id;
-    historiasColetadas[id] = true;
-    
-    document.getElementById('papiro-titulo').textContent = DADOS_HISTORIAS[id].titulo;
-    document.getElementById('papiro-texto').innerHTML = DADOS_HISTORIAS[id].texto;
-    document.getElementById('papiro-btn-acao').textContent = "Compreendi o Enigma";
-    
-    const emojiSlot = document.getElementById(`emoji-slot-${id}`);
-    if (emojiSlot) {
-        emojiSlot.textContent = DADOS_HISTORIAS[id].emoji;
-        emojiSlot.classList.add('coletado');
-    }
-    
-    paused = true;
-    document.exitPointerLock();
-    document.getElementById('papiro-overlay').style.display = 'flex';
-}
-
-function fecharPapiro() {
-    document.getElementById('papiro-overlay').style.display = 'none';
-    paused = false;
-    renderer.domElement.requestPointerLock();
-}
-
-function reverHistoria(id) {
-    if (historiasColetadas[id]) {
-        abrirPapiroHistoria(id);
-    }
-}
-
-// =============================================================================
-// INIT
-// =============================================================================
 function init() {
+    initState(); // Initialise THREE-dependent global state (exitPos, playerPos, torchColor)
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(CONFIG.FOG_COLOR);
     scene.fog = new THREE.Fog(CONFIG.FOG_COLOR, 5, 60);
+
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.rotation.order = 'YXZ';
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // Limit pixel ratio to max 1.25 to prevent performance issues on high-res displays
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.8;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -223,7 +106,8 @@ function init() {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.repeat.set(210, 210);
-            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            // Limit anisotropy to 4 to prevent fill-rate bottlenecks
+            tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
             floorMat[prop] = tex;
             floorMat.needsUpdate = true;
         });
@@ -233,45 +117,32 @@ function init() {
     loadFloorTex('assets/grass/aerial_grass_rock_nor_gl_1k.png', 'normalMap');
     loadFloorTex('assets/grass/aerial_grass_rock_rough_1k.png', 'roughnessMap');
 
+    // Modules initialization
     setupLighting();
     setupDayNightCycle(); 
     setupInput();
     createWhispers();     
     createPlayerBody();   
+    createFirstPersonTorch();
+    
+    // Light Pool of 4 PointLights (potato friendly optimization)
+    for (let i = 0; i < 4; i++) {
+        const pl = new THREE.PointLight(0xff9922, 0, 8, 1.5);
+        pl.castShadow = false; // Wall lights do not cast shadows
+        scene.add(pl);
+        lightPool.push(pl);
+    }
+
     SkyEnvironment.init(scene); 
     loadMazeModel();
 
     adicionarObjetoFixo('assets/elements/novelo_final.glb', 17.22, 0, -1, 212, 5, true, 0);
 
+    lastTime = clock.getElapsedTime();
+
     animate();
 }
 
-// =============================================================================
-// ILUMINAÇÃO
-// =============================================================================
-function setupLighting() {
-    ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
-
-    hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-    scene.add(hemiLight);
-
-    sunLight = new THREE.DirectionalLight(0xfff0f0, 1.0);
-    sunLight.position.set(20, 50, 20);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    scene.add(sunLight);
-
-    torch = new THREE.SpotLight(0xfffee0, 1.8, 18, Math.PI / 7, 0.35, 2);
-    scene.add(torch);
-    scene.add(torch.target);
-    scene.add(camera);
-}
-
-// =============================================================================
-// INPUT
-// =============================================================================
 function setupInput() {
     window.addEventListener('keydown', (e) => {
         const key = e.code.toLowerCase();
@@ -284,11 +155,6 @@ function setupInput() {
         if (key === 'controlleft' || key === 'controlright') KEY.control = true;
 
         if (e.code === 'KeyC' && gameStarted && !gameWon) toggleCamera();
-
-        if (e.code === 'KeyF' && gameStarted && !gameWon) {
-            torchOn = !torchOn;
-            torch.intensity = torchOn ? 1.8 : 0;
-        }
 
         if (e.code === 'KeyV' && gameStarted && !gameWon) {
             flyMode = !flyMode;
@@ -357,15 +223,53 @@ function setupInput() {
             });
         }
     }
+
+    // Raycast interaction with wall torches
+    window.addEventListener('click', (e) => {
+        if (isLocked && gameStarted && !gameWon && !paused) {
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            const intersects = raycaster.intersectObjects(wallTorches, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj && obj.parent && !obj.userData.isWallTorch) {
+                    obj = obj.parent;
+                }
+                
+                if (obj && obj.userData.isWallTorch && obj.userData.active) {
+                    const dist = playerPos.distanceTo(obj.position);
+                    if (dist < 3.5) {
+                        if (!hasTorch) {
+                            obj.userData.active = false;
+                            obj.userData.flame.visible = false;
+                            
+                            hasTorch = true;
+                            torchOn = true;
+                            torchTimeRemaining = 60.0;
+                            
+                            showNotification("Roubaste uma tocha da parede! Agora tens luz 🔥");
+                        } else {
+                            torchOn = true;
+                            torchTimeRemaining = 60.0;
+                            
+                            showNotification("Reacendeste a tua tocha! +1 Minuto de Luz 🔥");
+                        }
+                    } else {
+                        showNotification("Estás demasiado longe para alcançar a tocha!");
+                    }
+                }
+            }
+        }
+    });
 }
 
-// =============================================================================
-// MODELO DO LABIRINTO
-// =============================================================================
 function loadMazeModel() {
     const loader = new THREE.GLTFLoader();
     loader.load(CONFIG.MODEL_PATH, (gltf) => {
         const model = gltf.scene;
+        model.position.y = -0.5;
+
         scene.add(model);
 
         camera.position.set(-0.8, CONFIG.PLAYER_HEIGHT, 3);
@@ -390,11 +294,15 @@ function loadMazeModel() {
                     child.material.metalnessMap = null;
                     child.material.envMapIntensity = 0.2;
                     child.material.emissive = new THREE.Color(0x334488);
-                    child.material.emissiveIntensity = 0.0;
+                    child.material.color = new THREE.Color(0xd0d0d0); 
+                    child.material.side = THREE.DoubleSide;
+                    child.material.emissiveIntensity = 0.5;
+                    
                     child.material.needsUpdate = true;
 
                     if (child.material.map) {
-                        child.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                        // Limit anisotropy to 4
+                        child.material.map.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
                         child.material.map.minFilter = THREE.LinearMipmapLinearFilter;
                         child.material.map.generateMipmaps = true;
                     }
@@ -405,92 +313,44 @@ function loadMazeModel() {
                 }
             }
         });
+        
         document.getElementById('loading').style.display = 'none';
+
+        // Spawns wall torches
+        createWallTorches();
+
+        // Optional nature spawning (ivy/hera is removed)
+        if (typeof espalharErvaGLTF === "function") {
+            espalharErvaGLTF(scene, mazeObjects);
+        }
+        
+        if (typeof espalharFlorestaGLTF === "function") {
+            espalharFlorestaGLTF(scene, mazeObjects);
+        }
     });
 }
 
-// =============================================================================
-// MOVIMENTO E COLISÃO
-// =============================================================================
-function updateMovement() {
-    if (!gameStarted || gameWon || paused) return;
-
-    const speed = KEY.shift ? CONFIG.PLAYER_SPRINT : CONFIG.PLAYER_SPEED;
-    const moveDir = new THREE.Vector3();
-
-    if (KEY.w) moveDir.z -= 1;
-    if (KEY.s) moveDir.z += 1;
-    if (KEY.a) moveDir.x -= 1;
-    if (KEY.d) moveDir.x += 1;
-
-    // Lógica do Modo de Voo
-    if (flyMode) {
-        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        const right   = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        
-        const finalDirection = new THREE.Vector3()
-            .addScaledVector(forward, -moveDir.z)
-            .addScaledVector(right, moveDir.x);
-            
-        if (finalDirection.lengthSq() > 0) {
-            finalDirection.normalize().multiplyScalar(speed);
-        }
-
-        if (KEY.space) playerPos.y += speed;     // Sobe com o Space
-        if (KEY.control) playerPos.y -= speed;   // Desce com o Control
-
-        playerPos.x += finalDirection.x;
-        playerPos.z += finalDirection.z;
-        return; 
-    }
-
-    if (moveDir.lengthSq() === 0) {
-        if (playerPos.y !== CONFIG.PLAYER_HEIGHT) {
-            playerPos.y = THREE.MathUtils.lerp(playerPos.y, CONFIG.PLAYER_HEIGHT, 0.1);
-        }
-        return;
-    }
-
-    moveDir.normalize();
-
-    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-
-    const finalDirection = new THREE.Vector3()
-        .addScaledVector(forward, -moveDir.z)
-        .addScaledVector(right, moveDir.x)
-        .normalize()
-        .multiplyScalar(speed);
-
-    // Head bobbing
-    bobTimer += KEY.shift ? 0.22 : 0.14;
-    playerPos.y = CONFIG.PLAYER_HEIGHT + Math.sin(bobTimer) * 0.04;
-
-    // Colisões via Raycaster
-    const origin = new THREE.Vector3(playerPos.x, 0.5, playerPos.z);
-
-    const rayX = new THREE.Raycaster(origin, new THREE.Vector3(Math.sign(finalDirection.x), 0, 0), 0, CONFIG.COLLISION_MARGIN);
-    if (rayX.intersectObjects(mazeObjects, false).length === 0) playerPos.x += finalDirection.x;
-
-    const rayZ = new THREE.Raycaster(origin, new THREE.Vector3(0, 0, Math.sign(finalDirection.z)), 0, CONFIG.COLLISION_MARGIN);
-    if (rayZ.intersectObjects(mazeObjects, false).length === 0) playerPos.z += finalDirection.z;
-}
-
-// =============================================================================
-// LOOP DE ANIMAÇÃO
-// =============================================================================
 function animate() {
     requestAnimationFrame(animate);
 
+    if (sunLight && sunLight.target && camera) {
+        // Update shadow targets (Potato Shadows)
+        sunLight.target.position.set(camera.position.x, 0, camera.position.z);
+        sunLight.position.set(camera.position.x + 20, 50, camera.position.z + 20);
+    }
+
     if (gameStarted && !gameWon && !paused) {
-        // 1. Animar os Anéis Luminosos (Auréolas)
         const tempo = clock.getElapsedTime();
+        const delta = tempo - lastTime;
+        lastTime = tempo;
+
+        // 1. Collectible Rings animation
         for (let ring of aneisLuminosos) {
             ring.rotation.z += 0.02;
             ring.position.y = ring.userData.baseY + Math.sin(tempo * 3) * 0.08;
         }
 
-        // 2. Verificar Proximidade com os Colecionáveis
+        // 2. Check Collectibles Proximity
         for (let col of colecionaveis) {
             if (!col.coletado) {
                 const distancia = playerPos.distanceTo(col.pos);
@@ -502,11 +362,13 @@ function animate() {
             }
         }
 
-        // 3. Movimento do jogador
+        // 3. Movement update
         updateMovement();
+        
+        // 4. Update particle animations, walk cycle, day-night cycle
         updateAnimations(); 
 
-        // 4. Câmara
+        // 5. Camera update
         if (cameraMode === 'FPS') {
             camera.position.copy(playerPos);
             camera.rotation.set(pitch, yaw, 0);
@@ -537,72 +399,173 @@ function animate() {
             camera.lookAt(playerPos.x, playerPos.y + 0.5, playerPos.z);
         }
 
-        // 5. Verificar vitória
+        // 6. Win check
         if (playerPos.distanceTo(exitPos) < CONFIG.EXIT_RADIUS) {
             gameWon = true;
             document.exitPointerLock();
             document.getElementById('win-screen').style.display = 'flex';
         }
 
-        // 6. Sincronizar corpo do jogador
+        // 7. Sync player body
         if (playerBody) {
             playerBody.position.set(playerPos.x, playerPos.y - 1.63, playerPos.z);
             playerBody.rotation.y = yaw + Math.PI;
         }
 
-        // 7. Piscar da lanterna e posicionamento
-        if (torch && torchOn) {
-            const t_global = clock.getElapsedTime();
-            torch.intensity = 1.8
-                + Math.sin(t_global * 6.3) * 0.12
-                + Math.sin(t_global * 17.7) * 0.06;
+        // 8. Torch timers, notifications and dynamic lights
+        const t_global = clock.getElapsedTime();
 
-            if (cameraMode === 'FPS') {
-                torch.position.copy(camera.position).add(new THREE.Vector3(0.3, -0.2, 0).applyQuaternion(camera.quaternion));
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                torch.target.position.copy(torch.position).add(forward);
-            } else if (playerBody && playerBody.rightHand) {
-                playerBody.rightHand.getWorldPosition(torch.position);
-                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-                torch.target.position.copy(torch.position).add(forward);
+        // Torch timer
+        if (torchOn) {
+            torchTimeRemaining -= delta;
+            if (torchTimeRemaining <= 0) {
+                torchTimeRemaining = 0;
+                torchOn = false;
+                if (torch) torch.intensity = 0;
+                showNotification("A tua tocha apagou-se! Reacende-a numa tocha da parede. 🕯️");
             }
         }
 
-        // 8. Debug
+        // Sunset check
+        if (currentPhase === 'Noite' && !hasTorch && !nightNotificationShown) {
+            nightNotificationShown = true;
+            showNotification("Está a ficar escuro! Aproxima-te de uma tocha na parede e clica nela para a roubares. 🧭");
+        }
+
+        // Whimsical torch color based on collected artifacts
+        let targetColor = new THREE.Color(0xffb52e);
+        if (historiasColetadas[1]) {
+            targetColor.setHex(0x55ff66); // Green after sword
+        } else if (historiasColetadas[0]) {
+            targetColor.setHex(0x00bfff); // Blue after thread
+        }
+        torchColor.lerp(targetColor, 0.05);
+
+        // Position & animate first person torch
+        if (cameraMode === 'FPS') {
+            if (fpTorch) {
+                fpTorch.visible = hasTorch;
+                if (fpTorch.flame) {
+                    fpTorch.flame.visible = torchOn;
+                    if (torchOn) {
+                        fpTorch.flame.material.color.copy(torchColor);
+                        fpTorch.flame.material.emissive.copy(torchColor);
+                        const flameScale = 1.0 + Math.sin(t_global * 12) * 0.08 + Math.cos(t_global * 23) * 0.04;
+                        fpTorch.flame.scale.setScalar(flameScale);
+                    }
+                }
+                
+                // Breath/walk bobbing of fp torch
+                let bobY = Math.sin(t_global * 2) * 0.005;
+                let bobX = Math.cos(t_global * 1) * 0.003;
+                if (KEY.w || KEY.s || KEY.a || KEY.d) {
+                    const walkSpeed = KEY.shift ? 10 : 6;
+                    bobY += Math.sin(t_global * walkSpeed) * 0.012;
+                    bobX += Math.cos(t_global * walkSpeed / 2) * 0.01;
+                }
+                fpTorch.position.set(0.25 + bobX, -0.22 + bobY, -0.4);
+            }
+        } else {
+            if (fpTorch) fpTorch.visible = false;
+            if (playerBody && playerBody.torchMesh && playerBody.torchMesh.flame && torchOn) {
+                playerBody.torchMesh.flame.material.color.copy(torchColor);
+                playerBody.torchMesh.flame.material.emissive.copy(torchColor);
+                const flameScale = 1.0 + Math.sin(t_global * 12) * 0.08 + Math.cos(t_global * 23) * 0.04;
+                playerBody.torchMesh.flame.scale.setScalar(flameScale);
+            }
+        }
+
+        // Spotlight torch emission
+        if (torch) {
+            if (torchOn) {
+                torch.intensity = 1.8
+                    + Math.sin(t_global * 6.3) * 0.12
+                    + Math.sin(t_global * 17.7) * 0.06;
+                torch.color.copy(torchColor);
+
+                if (cameraMode === 'FPS') {
+                    torch.position.copy(camera.position).add(new THREE.Vector3(0.3, -0.2, 0).applyQuaternion(camera.quaternion));
+                    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    torch.target.position.copy(torch.position).add(forward);
+                } else if (playerBody && playerBody.rightHand) {
+                    playerBody.rightHand.getWorldPosition(torch.position);
+                    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+                    torch.target.position.copy(torch.position).add(forward);
+                }
+            } else {
+                torch.intensity = 0;
+            }
+        }
+
+        // Light pool point light updates (Distance Culling + pulse effect)
+        const activeTorches = wallTorches.filter(wt => wt.userData.active);
+        activeTorches.forEach(wt => {
+            wt.userData.distanceToPlayer = playerPos.distanceTo(wt.userData.lightWorldPos);
+        });
+        
+        activeTorches.sort((a, b) => a.userData.distanceToPlayer - b.userData.distanceToPlayer);
+        
+        for (let i = 0; i < lightPool.length; i++) {
+            const light = lightPool[i];
+            // Only enable light if within 12.0m radius (optimized down from 16.0m)
+            if (i < activeTorches.length && activeTorches[i].userData.distanceToPlayer < 12.0) {
+                const wt = activeTorches[i];
+                light.position.copy(wt.userData.lightWorldPos);
+                
+                const randOffset = wt.userData.id * 1.5;
+                const pulse = Math.sin(t_global * 10 + randOffset) * 0.08 + Math.cos(t_global * 17 + randOffset) * 0.04;
+                light.intensity = 1.2 + pulse * 1.5;
+                light.color.copy(torchColor);
+                
+                wt.userData.flame.scale.setScalar(wt.userData.baseScale + pulse);
+                wt.userData.flame.material.color.copy(torchColor);
+                wt.userData.flame.material.emissive.copy(torchColor);
+            } else {
+                light.intensity = 0;
+            }
+        }
+        
+        // Animate remaining distant flames (visual scale only, no active GPU pointlight)
+        for (let i = 4; i < activeTorches.length; i++) {
+            const wt = activeTorches[i];
+            const randOffset = wt.userData.id * 1.5;
+            const pulse = Math.sin(t_global * 10 + randOffset) * 0.08 + Math.cos(t_global * 17 + randOffset) * 0.04;
+            wt.userData.flame.scale.setScalar(wt.userData.baseScale + pulse);
+            wt.userData.flame.material.color.copy(torchColor);
+            wt.userData.flame.material.emissive.copy(torchColor);
+        }
+
+        // Raycast for crosshair activation
+        let lookingAtTorch = false;
+        if (isLocked && gameStarted && !gameWon && !paused) {
+            const hoverRay = new THREE.Raycaster();
+            hoverRay.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = hoverRay.intersectObjects(wallTorches, true);
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj && obj.parent && !obj.userData.isWallTorch) {
+                    obj = obj.parent;
+                }
+                if (obj && obj.userData.isWallTorch && obj.userData.active) {
+                    const dist = playerPos.distanceTo(obj.position);
+                    if (dist < 3.5) {
+                        lookingAtTorch = true;
+                    }
+                }
+            }
+        }
+        const crosshair = document.getElementById('crosshair');
+        if (crosshair) {
+            if (lookingAtTorch) {
+                crosshair.classList.add('active');
+            } else {
+                crosshair.classList.remove('active');
+            }
+        }
+
         updateDebug();
     }
     renderer.render(scene, camera);
-}
-
-// =============================================================================
-// TOGGLE CÂMARA FPS / TPS
-// =============================================================================
-function toggleCamera() {
-    cameraMode = (cameraMode === 'FPS') ? 'TPS' : 'FPS';
-
-    if (cameraMode === 'TPS') {
-        camera.fov = 65;
-        if (playerBody) playerBody.visible = true;
-    } else {
-        camera.fov = 75;
-        if (playerBody) playerBody.visible = false;
-        camera.rotation.order = 'YXZ';
-    }
-    camera.updateProjectionMatrix();
-}
-
-// =============================================================================
-// DEBUG
-// =============================================================================
-function updateDebug() {
-    const debugEl = document.getElementById('debug');
-    if (!debugEl) return;
-    const p = (playerPos.lengthSq() > 0) ? playerPos : camera.position;
-    const lockIcon = isLocked ? '✓' : '✗';
-    const phase = currentPhase ? ` | ${currentPhase}` : '';
-    const flyStatus = flyMode ? ' | VOO' : '';
-    debugEl.textContent =
-        `${cameraMode}${phase}${flyStatus} | X:${p.x.toFixed(2)}  Y:${p.y.toFixed(2)}  Z:${p.z.toFixed(2)}  |  Lock:${lockIcon}`;
 }
 
 window.addEventListener('resize', () => {
@@ -611,4 +574,5 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Start the game initialization
 init();

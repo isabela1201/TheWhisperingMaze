@@ -60,7 +60,7 @@ const SkyEnvironment = {
 
         // --- ESTRELAS ---
         const starGeom = new THREE.BufferGeometry();
-        const starCount = 600;
+        const starCount = 250;
         const starPos = new Float32Array(starCount * 3);
 
         for (let i = 0; i < starCount; i++) {
@@ -130,7 +130,7 @@ const SkyEnvironment = {
             geo.computeVertexNormals(); 
         });
         
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 12; i++) {
             const cloudGroup = new THREE.Group();
             
             // manter as cores originais do projeto
