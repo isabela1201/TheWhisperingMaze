@@ -8,6 +8,8 @@ const SkyEnvironment = {
     stars: null,
     clouds: [],
     cloudMats: [],
+    moonPlane: null,   // PlaneGeometry mesh com PNG da lua
+    moonPlaneMat: null,// ref para animar opacidade da lua
 
     init: function (scene) {
         // Grupo que contém todos os elementos celestes
@@ -18,13 +20,13 @@ const SkyEnvironment = {
         this.sunGroup = new THREE.Group();
         this.skyGroup.add(this.sunGroup);
 
-        // Esfera principal do sol
+        // Esfera principal do sol (base de cor)
         const sunGeom = new THREE.IcosahedronGeometry(18, 2);
         const sunMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, fog: false });
         const sunMesh = new THREE.Mesh(sunGeom, sunMat);
         this.sunGroup.add(sunMesh);
 
-        // Brilho do sol (Additive blending para glow top)
+        // Brilho do sol (Additive blending para glow)
         const sunGlowGeom = new THREE.IcosahedronGeometry(22, 2);
         const sunGlowMat = new THREE.MeshBasicMaterial({
             color: 0xff9900,
@@ -36,17 +38,38 @@ const SkyEnvironment = {
         const sunGlow = new THREE.Mesh(sunGlowGeom, sunGlowMat);
         this.sunGroup.add(sunGlow);
 
+        // --- PNG DA LUA (PlaneGeometry que olha sempre para a câmara) ---
+        const texLoader = new THREE.TextureLoader();
+        texLoader.load('assets/sky/lua.png', (moonTex) => {
+            moonTex.center.set(0.5, 0.5);
+            this.moonPlaneMat = new THREE.MeshBasicMaterial({
+                map: moonTex,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthTest: false,   // ignora o depth buffer
+                depthWrite: false,
+                fog: false,
+                opacity: 0
+            });
+            this.moonPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(32, 32),
+                this.moonPlaneMat
+            );
+            this.moonPlane.renderOrder = 1;
+            this.skyGroup.add(this.moonPlane);
+        });
+
         // --- LUA ---
         this.moonGroup = new THREE.Group();
         this.skyGroup.add(this.moonGroup);
 
-        // Esfera perfeita 
+        // Esfera perfeita (base de cor)
         const moonGeom = new THREE.SphereGeometry(14, 32, 32);
         const moonMat = new THREE.MeshBasicMaterial({ color: 0xeef4ff, fog: false });
         const moonMesh = new THREE.Mesh(moonGeom, moonMat);
         this.moonGroup.add(moonMesh);
 
-        // Glow da Lua (para iluminar)
+        // Glow da Lua
         const moonGlowGeom = new THREE.SphereGeometry(18, 16, 16);
         const moonGlowMat = new THREE.MeshBasicMaterial({
             color: 0xaaccff,
@@ -58,7 +81,6 @@ const SkyEnvironment = {
         const moonGlow = new THREE.Mesh(moonGlowGeom, moonGlowMat);
         this.moonGroup.add(moonGlow);
 
-        // --- ESTRELAS ---
         const starGeom = new THREE.BufferGeometry();
         const starCount = 250;
         const starPos = new Float32Array(starCount * 3);
@@ -207,6 +229,15 @@ const SkyEnvironment = {
 
         // Estrelas rodam rigorosamente de acordo com a mesma fórmula orbital
         this.stars.rotation.z = -angle;
+
+        // --- PNG DA LUA: actualizar posição + lookAt câmara ---
+        // O plano segue a posição world-space do grupo lua e olha para o jogador.
+        if (this.moonPlane && camera) {
+            this.moonPlane.position.copy(this.moonGroup.position);
+            this.moonPlane.lookAt(camera.position);
+            // Fade: invisível de dia, aparece à noite
+            this.moonPlaneMat.opacity = nightFactor;
+        }
 
         // --- ANIMAÇÃO DAS NUVENS ---
         const dayColor = new THREE.Color(0xffffff);

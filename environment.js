@@ -184,12 +184,9 @@ function createWallTorches() {
     const minZ = mazeBox.min.z;
     const maxZ = mazeBox.max.z;
 
-    // Margin from the edge of the bounding box to consider a wall as "exterior"
-    const EXTERIOR_MARGIN = 4.0;
-
-    const gridSpacing = 9.0;
+    // Scan with a gridSpacing of 4.5 to find wall surfaces throughout all corridors
+    const gridSpacing = 4.5;
     const raycaster = new THREE.Raycaster();
-    const backRaycaster = new THREE.Raycaster();
     const scanHeight = 1.0;
     
     const directions = [
@@ -218,63 +215,47 @@ function createWallTorches() {
                     }
                 }
                 
-                if (wallHit && wallHit.distance > 0.3 && wallHit.distance < 1.8) {
+                // Scan up to 2.5m distance to find local corridor walls
+                if (wallHit && wallHit.distance > 0.3 && wallHit.distance < 2.5) {
                     const torchPos = wallHit.point.clone();
                     
                     const normalWorld = wallHit.face.normal.clone();
                     const normalMatrix = new THREE.Matrix3().getNormalMatrix(wallHit.object.matrixWorld);
                     normalWorld.applyMatrix3(normalMatrix).normalize();
                     
+                    // Only place on vertical/wall faces
                     if (Math.abs(normalWorld.y) < 0.3) {
-
-                        // --- EXTERIOR ONLY CHECK ---
-                        // The torch position must be near the boundary of the maze bounding box.
-                        // We measure distance from the torch point to each of the 4 edges.
-                        const distToEdgeX = Math.min(Math.abs(torchPos.x - minX), Math.abs(torchPos.x - maxX));
-                        const distToEdgeZ = Math.min(Math.abs(torchPos.z - minZ), Math.abs(torchPos.z - maxZ));
-                        const nearExteriorEdge = (distToEdgeX < EXTERIOR_MARGIN || distToEdgeZ < EXTERIOR_MARGIN);
-
-                        if (!nearExteriorEdge) continue; // Skip: too deep inside the maze
-
-                        // Secondary check: fire a ray in the OPPOSITE direction of the normal (back into the wall).
-                        // If there is open space right behind the wall face, it is truly exterior.
-                        // Interior walls would have another wall or maze structure very close on the other side.
-                        const backDir = normalWorld.clone().negate();
-                        backRaycaster.set(torchPos.clone().addScaledVector(normalWorld, 0.2), backDir);
-                        const backHits = backRaycaster.intersectObjects(mazeObjects, true).filter(h => {
-                            const n = h.object.name.toLowerCase();
-                            return !h.object.isInstancedMesh && !n.includes('tree') && !n.includes('bush');
-                        });
-                        // If there's another wall within 2 meters behind this surface, it's an interior wall — skip it
-                        if (backHits.length > 0 && backHits[0].distance < 2.0) continue;
-
-                        torchPos.addScaledVector(normalWorld, 0.05);
-                        
-                        let tooClose = false;
-                        for (let existing of wallTorches) {
-                            if (existing.position.distanceTo(torchPos) < 5.0) {
-                                tooClose = true;
-                                break;
+                        // Ensure the normal is pointing back towards the starting scan point
+                        // (meaning we hit a front-facing wall face from the corridor, not a backface)
+                        if (normalWorld.dot(d.dir) < 0) {
+                            torchPos.addScaledVector(normalWorld, 0.05);
+                            
+                            let tooClose = false;
+                            for (let existing of wallTorches) {
+                                if (existing.position.distanceTo(torchPos) < 5.0) {
+                                    tooClose = true;
+                                    break;
+                                }
                             }
-                        }
-                        
-                        if (!tooClose) {
-                            const torchGroup = buildTorchMesh(torchPos, normalWorld, count++);
-                            scene.add(torchGroup);
                             
-                            // Force absolute matrix calculations to find the flame position
-                            torchGroup.updateMatrixWorld(true);
-                            const localFlamePos = new THREE.Vector3(0, 0.18, 0.045);
-                            torchGroup.userData.lightWorldPos = localFlamePos.applyMatrix4(torchGroup.matrixWorld);
-                            
-                            wallTorches.push(torchGroup);
+                            if (!tooClose) {
+                                const torchGroup = buildTorchMesh(torchPos, normalWorld, count++);
+                                scene.add(torchGroup);
+                                
+                                // Force absolute matrix calculations to find the flame position
+                                torchGroup.updateMatrixWorld(true);
+                                const localFlamePos = new THREE.Vector3(0, 0.18, 0.045);
+                                torchGroup.userData.lightWorldPos = localFlamePos.applyMatrix4(torchGroup.matrixWorld);
+                                
+                                wallTorches.push(torchGroup);
+                            }
                         }
                     }
                 }
             }
         }
     }
-    console.log(`[Tochas] ${wallTorches.length} tochas criadas nas paredes EXTERIORES do labirinto.`);
+    console.log(`[Tochas] ${wallTorches.length} tochas criadas no labirinto.`);
 }
 
 
