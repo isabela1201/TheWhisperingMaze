@@ -1,7 +1,7 @@
 // particles.js
 // Handles optimized firefly (whispers) particle effects
 
-const WHISPER_COUNT = 80; // Highly optimized (down from 200) for potato GPUs
+const WHISPER_COUNT = 200; // Highly optimized (down from 200) for potato GPUs
 const WHISPER_SPREAD = 60;
 
 function createWhispers() {
@@ -76,7 +76,7 @@ function updateWhispers(t, delta) {
 
         // Float motion using sine/cosine orbits
         const s = t * m.speed;
-        positions[i * 3]     = m.baseX + Math.sin(s + m.phaseX) * 0.4;
+        positions[i * 3] = m.baseX + Math.sin(s + m.phaseX) * 0.4;
         positions[i * 3 + 1] = m.baseY + Math.sin(s * 0.6 + m.phaseY) * 0.18;
         positions[i * 3 + 2] = m.baseZ + Math.cos(s + m.phaseZ) * 0.4;
 
@@ -89,7 +89,7 @@ function updateWhispers(t, delta) {
 
         // Scale by whisper brightness multiplier (brighter at night)
         const b = brightness * whisperBrightnessMult;
-        colors[i * 3]     = TR * b;
+        colors[i * 3] = TR * b;
         colors[i * 3 + 1] = TG * b;
         colors[i * 3 + 2] = TB * b;
     }

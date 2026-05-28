@@ -34,6 +34,7 @@ let flyMode = false;
 let torch = null;
 let torchOn = false;
 let hasTorch = false;
+let hasAcquiredTorch = false; // Track if the player has ever picked up a torch
 let torchTimeRemaining = 0.0;
 let lastTime = 0;
 let torchColor = null;   // initialised in initState()
@@ -66,7 +67,7 @@ let whisperPrevTime = 0;
 
 // Called at the very start of init(), after Three.js is confirmed loaded
 function initState() {
-    exitPos    = new THREE.Vector3(10, 0, 10);
+    exitPos    = new THREE.Vector3(1.6, 0, -38.35);
     playerPos  = new THREE.Vector3();
     torchColor = new THREE.Color(0xffb52e);
 }

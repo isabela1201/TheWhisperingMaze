@@ -121,38 +121,119 @@ function buildTorchMesh(position, normal, index) {
     // Rotate to point away from wall
     group.lookAt(position.clone().add(normal));
     
-    // Wall bracket support
-    const bracketMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, metalness: 0.8, flatShading: true });
-    const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.1, 5), bracketMat);
-    bracket.rotation.x = Math.PI / 2;
-    bracket.position.z = -0.05;
-    group.add(bracket);
-    
-    // Wood handle
-    const handleMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9, flatShading: true });
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.01, 0.22, 5), handleMat);
-    handle.position.set(0, 0.04, -0.01);
-    handle.rotation.x = -Math.PI / 8; // Tilted slightly
-    group.add(handle);
-    
-    // Metal cup
-    const cupMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.3, metalness: 0.8, flatShading: true });
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.015, 0.05, 5), cupMat);
-    cup.position.set(0, 0.13, 0.025);
-    cup.rotation.x = -Math.PI / 8;
-    group.add(cup);
-    
-    // Flame
-    const flameMat = new THREE.MeshStandardMaterial({
-        color: 0xffaa00,
-        emissive: 0xff5500,
-        emissiveIntensity: 2.0,
+    // Materials
+    const metalMat = new THREE.MeshStandardMaterial({
+        color: 0xcd7f32, // Bronze
+        roughness: 0.4,
+        metalness: 0.8,
         flatShading: true
     });
-    const flame = new THREE.Mesh(new THREE.IcosahedronGeometry(0.04, 0), flameMat);
-    flame.position.set(0, 0.18, 0.045);
-    group.add(flame);
     
+    const handleMat = new THREE.MeshStandardMaterial({
+        color: 0x5c4033, // Dark Wood
+        roughness: 0.8,
+        metalness: 0.1,
+        flatShading: true
+    });
+
+    const pitchMat = new THREE.MeshStandardMaterial({
+        color: 0x111111, // Glossy pitch/coal
+        roughness: 0.9,
+        metalness: 0.1,
+        flatShading: true
+    });
+
+    const flameMat = new THREE.MeshStandardMaterial({
+        color: 0xffaa00,
+        emissive: 0xff4400,
+        emissiveIntensity: 3.0,
+        flatShading: true,
+        transparent: true,
+        opacity: 0.95
+    });
+
+    // 1. Wall Mount (Base Plate) - slightly embedded in wall (z = -0.01) to sit flush
+    const basePlate = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 0.02), metalMat);
+    basePlate.position.set(0, 0, -0.01);
+    group.add(basePlate);
+
+    // Ornate curved arm (bracket)
+    const armLower = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 5), metalMat);
+    armLower.position.set(0, -0.03, 0.04);
+    armLower.rotation.x = Math.PI / 4; // Angled upward
+    group.add(armLower);
+
+    const armUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 5), metalMat);
+    armUpper.position.set(0, 0.025, 0.07);
+    armUpper.rotation.x = Math.PI / 2; // Horizontal extension
+    group.add(armUpper);
+
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.03, 6, 1, true), metalMat);
+    collar.position.set(0, 0.025, 0.1);
+    collar.rotation.x = Math.PI / 8; // Aligned with handle tilt
+    group.add(collar);
+
+    // 2. Torch Sub-group (tilted forward for modular orientation and easy math)
+    const torchSubGroup = new THREE.Group();
+    torchSubGroup.position.set(0, 0.02, 0.1);
+    torchSubGroup.rotation.x = Math.PI / 8; // Tilt outward from wall
+    group.add(torchSubGroup);
+
+    // Wooden handle
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.016, 0.35, 6), handleMat);
+    handle.position.set(0, 0.0, 0);
+    torchSubGroup.add(handle);
+
+    // 3. Torch Head & Sculpted Bronze Cage
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.025, 0.08, 6), metalMat);
+    cup.position.set(0, 0.21, 0);
+    torchSubGroup.add(cup);
+
+    // Top ring of the cage
+    const topRing = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.02, 6, 1, true), metalMat);
+    topRing.position.set(0, 0.32, 0);
+    torchSubGroup.add(topRing);
+
+    // Vertical cage ribs
+    for (let i = 0; i < 6; i++) {
+        const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.08, 4), metalMat);
+        const angle = (i * Math.PI) / 3;
+        const radiusTop = 0.055;
+        const radiusBottom = 0.045;
+        // Position at cage boundary
+        rib.position.set(
+            Math.cos(angle) * (radiusTop + radiusBottom) / 2,
+            0.27,
+            Math.sin(angle) * (radiusTop + radiusBottom) / 2
+        );
+        // Align with the conical shape
+        rib.rotation.z = -Math.sin(angle) * 0.12;
+        rib.rotation.x = Math.cos(angle) * 0.12;
+        torchSubGroup.add(rib);
+    }
+
+    // Molten Pitch Core
+    const pitch = new THREE.Mesh(new THREE.DodecahedronGeometry(0.035), pitchMat);
+    pitch.position.set(0, 0.24, 0);
+    torchSubGroup.add(pitch);
+
+    // Dynamic Flame Mesh
+    const flame = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 0), flameMat);
+    flame.position.set(0, 0.33, 0);
+    torchSubGroup.add(flame);
+
+    // Embedded SpotLight (120-degree cone = Math.PI / 3, penumbra = 0.8, distance = 7.5, decay = 2.0)
+    const spotLight = new THREE.SpotLight(0xffaa00, 0, 7.5, Math.PI / 3, 0.8, 2.0);
+    spotLight.position.set(0, 0.33, 0);
+    spotLight.castShadow = false;
+    torchSubGroup.add(spotLight);
+
+    // Target pointing straight out from the wall along local +Z axis
+    const spotTarget = new THREE.Object3D();
+    spotTarget.position.set(0, 0.33, 1.0);
+    torchSubGroup.add(spotTarget);
+    spotLight.target = spotTarget;
+
     group.userData = {
         isWallTorch: true,
         active: true,
@@ -160,7 +241,10 @@ function buildTorchMesh(position, normal, index) {
         flame: flame,
         baseScale: 1.0
     };
-    
+
+    group.spotLight = spotLight; // Expose SpotLight reference directly
+    group.torchSubGroup = torchSubGroup; // Expose sub group reference
+
     return group;
 }
 
@@ -244,8 +328,9 @@ function createWallTorches() {
                                 
                                 // Force absolute matrix calculations to find the flame position
                                 torchGroup.updateMatrixWorld(true);
-                                const localFlamePos = new THREE.Vector3(0, 0.18, 0.045);
-                                torchGroup.userData.lightWorldPos = localFlamePos.applyMatrix4(torchGroup.matrixWorld);
+                                const worldFlamePos = new THREE.Vector3();
+                                torchGroup.userData.flame.getWorldPosition(worldFlamePos);
+                                torchGroup.userData.lightWorldPos = worldFlamePos;
                                 
                                 wallTorches.push(torchGroup);
                             }

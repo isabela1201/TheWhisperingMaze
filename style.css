@@ -458,3 +458,158 @@ button:active {
 }
 #papiro-btn-acao:hover { background: #5c3a21; }
 .papiro-rodape { margin-top: 20px; }
+
+/* ── Curiosity Popup (non-collectible proximity objects) ── */
+#curiosidade-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 6, 3, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 210;
+    animation: fadeInCuriosidade 0.3s ease both;
+}
+@keyframes fadeInCuriosidade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+#curiosidade-janela {
+    position: relative;
+    width: 88%;
+    max-width: 540px;
+    background: linear-gradient(160deg, rgba(28, 18, 10, 0.97) 0%, rgba(45, 28, 12, 0.97) 100%);
+    border: 2px solid #c8a050;
+    border-radius: 10px;
+    padding: 36px 36px 28px;
+    box-shadow:
+        0 0 0 1px rgba(200, 160, 80, 0.2),
+        0 24px 60px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 220, 120, 0.1);
+    font-family: 'Georgia', serif;
+    color: #e8d8b8;
+    text-align: center;
+    box-sizing: border-box;
+    animation: slideUpCuriosidade 0.35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes slideUpCuriosidade {
+    from { transform: translateY(28px) scale(0.95); opacity: 0; }
+    to   { transform: translateY(0) scale(1);       opacity: 1; }
+}
+
+/* Decorative corner lines */
+#curiosidade-janela::before,
+#curiosidade-janela::after {
+    content: '';
+    position: absolute;
+    width: 40px; height: 40px;
+    border-color: #c8a050;
+    border-style: solid;
+    opacity: 0.5;
+}
+#curiosidade-janela::before {
+    top: 10px; left: 10px;
+    border-width: 2px 0 0 2px;
+    border-radius: 4px 0 0 0;
+}
+#curiosidade-janela::after {
+    bottom: 10px; right: 10px;
+    border-width: 0 2px 2px 0;
+    border-radius: 0 0 4px 0;
+}
+
+#curiosidade-icone {
+    font-size: 2.6rem;
+    margin-bottom: 8px;
+    display: block;
+    animation: floatIcon 3s ease-in-out infinite;
+}
+@keyframes floatIcon {
+    0%, 100% { transform: translateY(0);   }
+    50%       { transform: translateY(-5px); }
+}
+
+#curiosidade-titulo {
+    font-size: 20px;
+    color: #f0c060;
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(200, 160, 80, 0.35);
+    font-family: 'Fredoka One', cursive;
+}
+
+#curiosidade-texto {
+    font-size: 15px;
+    line-height: 1.75;
+    margin: 0 0 8px;
+    color: #d8c8a8;
+    text-align: justify;
+    font-style: italic;
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+#curiosidade-texto::-webkit-scrollbar { width: 4px; }
+#curiosidade-texto::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+#curiosidade-texto::-webkit-scrollbar-thumb { background: #c8a050; border-radius: 4px; }
+
+.curiosidade-rodape { margin-top: 20px; }
+
+#curiosidade-btn-fechar {
+    position: absolute;
+    top: 12px; right: 14px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #c8a050;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+    box-shadow: none;
+}
+#curiosidade-btn-fechar:hover {
+    color: #fff;
+    background: rgba(200, 80, 40, 0.3);
+    transform: none;
+    box-shadow: none;
+}
+
+#curiosidade-btn-acao {
+    background: linear-gradient(135deg, #8b6020, #c8a050);
+    color: #1a0e04;
+    border: 1px solid #8b6020;
+    padding: 10px 28px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 15px;
+    border-radius: 99px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #5a3d10, 0 6px 20px rgba(200,160,80,0.3);
+    letter-spacing: 0.04em;
+    transition: transform 0.12s, box-shadow 0.12s;
+}
+#curiosidade-btn-acao:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #5a3d10, 0 10px 28px rgba(200,160,80,0.4);
+}
+#curiosidade-btn-acao:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #5a3d10;
+}
+
+/* ── Collectible pickup notification badge ── */
+.colecionavel-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ffd700, #ffaa00);
+    color: #1a0e04;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem;
+    padding: 3px 12px;
+    border-radius: 99px;
+    margin-top: 6px;
+    box-shadow: 0 2px 8px rgba(255, 180, 0, 0.4);
+}

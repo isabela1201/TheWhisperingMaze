@@ -37,8 +37,21 @@
     </div>
 </div>
 <div id="crosshair"></div>
+
+<!-- Curiosity popup for non-collectible objects -->
+<div id="curiosidade-overlay" style="display: none;">
+  <div id="curiosidade-janela">
+    <button id="curiosidade-btn-fechar" onclick="fecharPopupCuriosidade()">&#x2715;</button>
+    <div id="curiosidade-icone">🏛️</div>
+    <h2 id="curiosidade-titulo">Curiosidade Minoica</h2>
+    <div id="curiosidade-texto">Texto da curiosidade...</div>
+    <div class="curiosidade-rodape">
+      <button id="curiosidade-btn-acao" onclick="fecharPopupCuriosidade()">Continuar a explorar</button>
+    </div>
+  </div>
+</div>
 <div id="game-notification" style="display: none;"></div>
-<div id="hud">WASD — mover &nbsp;·&nbsp; Rato — olhar &nbsp;·&nbsp; Shift — correr &nbsp;·&nbsp; C — câmara &nbsp;·&nbsp; ESC-pausa</div>
+<div id="hud">WASD — mover &nbsp;·&nbsp; Rato — olhar &nbsp;·&nbsp; Shift — correr &nbsp;·&nbsp; C — câmara &nbsp;·&nbsp; F — tocha &nbsp;·&nbsp; ESC-pausa</div>
 <div id="debug">W:▯ A:▯ S:▯ D:▯ | Lock:✗</div>
 
 <!-- Start overlay -->
@@ -82,6 +95,8 @@
 <script src="particles.js"></script>
 <script src="player.js"></script>
 <script src="environment.js"></script>
+<script src="objects.js"></script>
+<script src="door.js"></script>
 <script src="main.js"></script>
 
 </body>

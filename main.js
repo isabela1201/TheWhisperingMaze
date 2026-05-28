@@ -3,11 +3,11 @@
 
 function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColecionavel = false, idColecionavel = null) {
     const loader = new THREE.GLTFLoader();
-    
+
     loader.load(path, (gltf) => {
         const model = gltf.scene;
         model.scale.setScalar(escala);
-        
+
         // Calculate Bounding Box for floor alignment
         model.traverse((child) => {
             if (child.isMesh) child.geometry.computeBoundingBox();
@@ -15,13 +15,14 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         box.getSize(size);
-        
+
+        const floorOffset = -0.5;
         const alturaCompensada = (posY === 0) ? (size.y / 2) : posY;
-        model.position.set(posX, alturaCompensada, posZ);
+        const finalY = floorOffset + alturaCompensada;
+
+        model.position.set(posX, finalY, posZ);
         model.rotation.y = grausY * (Math.PI / 180);
-        
-        model.position.y = -0.5;
-        
+
         scene.add(model);
         mazeObjects.push(model);
 
@@ -37,20 +38,20 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
                 opacity: 0.6
             });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-            
+
             ringMesh.rotation.x = -Math.PI / 2;
-            ringMesh.position.set(posX, alturaCompensada + 0.05, posZ);
-            
+            ringMesh.position.set(posX, finalY + 0.05, posZ);
+
             scene.add(ringMesh);
-            
+
             ringMesh.userData = { id: idColecionavel, baseY: ringMesh.position.y };
             aneisLuminosos.push(ringMesh);
-            
+
             colecionaveis.push({
                 id: idColecionavel,
                 model: model,
                 ring: ringMesh,
-                pos: new THREE.Vector3(posX, alturaCompensada, posZ),
+                pos: new THREE.Vector3(posX, finalY, posZ),
                 coletado: false
             });
         }
@@ -66,7 +67,7 @@ function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColec
                 }
             }
         });
-        
+
     }, undefined, (error) => console.error(error));
 }
 
@@ -119,24 +120,26 @@ function init() {
 
     // Modules initialization
     setupLighting();
-    setupDayNightCycle(); 
+    setupDayNightCycle();
     setupInput();
-    createWhispers();     
-    createPlayerBody();   
+    createWhispers();
+    createPlayerBody();
     createFirstPersonTorch();
-    
-    // Light Pool of 4 PointLights (potato friendly optimization)
-    for (let i = 0; i < 4; i++) {
-        const pl = new THREE.PointLight(0xff9922, 0, 8, 1.5);
-        pl.castShadow = false; // Wall lights do not cast shadows
-        scene.add(pl);
-        lightPool.push(pl);
-    }
 
-    SkyEnvironment.init(scene); 
+    // No global light pool needed as lights are embedded in wall torch groups.
+    // However, we initialize lightPool to avoid reference errors elsewhere.
+    lightPool = [];
+
+    SkyEnvironment.init(scene);
     loadMazeModel();
 
-    adicionarObjetoFixo('assets/elements/novelo_final.glb', 17.22, 0, -1, 212, 5, true, 0);
+    // ── Populate scene with interactive objects (objects.js) ─────────────
+    // novelo, espada, estatua_girl, minotauro, golfinho, amfora, fonte are all
+    // placed inside popularCena() in objects.js.
+    popularCena();
+
+    // ── Create the exit door at the outermost maze opening (door.js) ─────
+    createExitDoor(1.6, 0.5, -38.35, 180);
 
     lastTime = clock.getElapsedTime();
 
@@ -155,6 +158,22 @@ function setupInput() {
         if (key === 'controlleft' || key === 'controlright') KEY.control = true;
 
         if (e.code === 'KeyC' && gameStarted && !gameWon) toggleCamera();
+
+        if (e.code === 'KeyF' && gameStarted && !gameWon) {
+            if (hasAcquiredTorch) {
+                if (hasTorch) {
+                    hasTorch = false;
+                    torchOn = false;
+                    showNotification("Guardaste a tocha.");
+                } else {
+                    hasTorch = true;
+                    torchOn = false; // ATTENTION: appears without the flame!
+                    showNotification("Equipaste a tocha (apagada). Acende-a numa tocha da parede.");
+                }
+            } else {
+                showNotification("Ainda não tens nenhuma tocha! Rouba uma da parede primeiro.");
+            }
+        }
 
         if (e.code === 'KeyV' && gameStarted && !gameWon) {
             flyMode = !flyMode;
@@ -229,30 +248,36 @@ function setupInput() {
         if (isLocked && gameStarted && !gameWon && !paused) {
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            
+
             const intersects = raycaster.intersectObjects(wallTorches, true);
             if (intersects.length > 0) {
                 let obj = intersects[0].object;
                 while (obj && obj.parent && !obj.userData.isWallTorch) {
                     obj = obj.parent;
                 }
-                
+
                 if (obj && obj.userData.isWallTorch && obj.userData.active) {
                     const dist = playerPos.distanceTo(obj.position);
                     if (dist < 3.5) {
                         if (!hasTorch) {
                             obj.userData.active = false;
                             obj.userData.flame.visible = false;
-                            
+                            if (obj.spotLight) {
+                                obj.spotLight.intensity = 0;
+                                obj.spotLight.visible = false;
+                                obj.spotLight.castShadow = false;
+                            }
+
                             hasTorch = true;
+                            hasAcquiredTorch = true;
                             torchOn = true;
                             torchTimeRemaining = 60.0;
-                            
+
                             showNotification("Roubaste uma tocha da parede! Agora tens luz 🔥");
                         } else {
                             torchOn = true;
                             torchTimeRemaining = 60.0;
-                            
+
                             showNotification("Reacendeste a tua tocha! +1 Minuto de Luz 🔥");
                         }
                     } else {
@@ -294,10 +319,10 @@ function loadMazeModel() {
                     child.material.metalnessMap = null;
                     child.material.envMapIntensity = 0.2;
                     child.material.emissive = new THREE.Color(0x334488);
-                    child.material.color = new THREE.Color(0xd0d0d0); 
+                    child.material.color = new THREE.Color(0xd0d0d0);
                     child.material.side = THREE.DoubleSide;
                     child.material.emissiveIntensity = 0.5;
-                    
+
                     child.material.needsUpdate = true;
 
                     if (child.material.map) {
@@ -313,7 +338,7 @@ function loadMazeModel() {
                 }
             }
         });
-        
+
         document.getElementById('loading').style.display = 'none';
 
         // Spawns wall torches
@@ -323,7 +348,7 @@ function loadMazeModel() {
         if (typeof espalharErvaGLTF === "function") {
             espalharErvaGLTF(scene, mazeObjects);
         }
-        
+
         if (typeof espalharFlorestaGLTF === "function") {
             espalharFlorestaGLTF(scene, mazeObjects);
         }
@@ -350,23 +375,31 @@ function animate() {
             ring.position.y = ring.userData.baseY + Math.sin(tempo * 3) * 0.08;
         }
 
-        // 2. Check Collectibles Proximity
+        // 2. Check Collectibles Proximity (novelo system)
         for (let col of colecionaveis) {
             if (!col.coletado) {
                 const distancia = playerPos.distanceTo(col.pos);
                 if (distancia < 1.8) {
                     col.coletado = true;
                     col.ring.visible = false;
-                    abrirPapiroHistoria(col.id); 
+                    abrirPapiroHistoria(col.id);
                 }
             }
         }
 
+        // 2b. Check special collectibles (espada, estatua_girl) — objects.js
+        verificarColecionaveisEspeciais();
+
+        // 2c. Proximity popups for non-collectible objects — objects.js
+        verificarProximidade();
+
         // 3. Movement update
         updateMovement();
-        
+
         // 4. Update particle animations, walk cycle, day-night cycle
-        updateAnimations(); 
+        updateAnimations();
+        // Advance AnimationMixer for fonte.glb water animation
+        atualizarFonte(delta);
 
         // 5. Camera update
         if (cameraMode === 'FPS') {
@@ -454,7 +487,7 @@ function animate() {
                         fpTorch.flame.scale.setScalar(flameScale);
                     }
                 }
-                
+
                 // Breath/walk bobbing of fp torch
                 let bobY = Math.sin(t_global * 2) * 0.005;
                 let bobX = Math.cos(t_global * 1) * 0.003;
@@ -463,7 +496,7 @@ function animate() {
                     bobY += Math.sin(t_global * walkSpeed) * 0.012;
                     bobX += Math.cos(t_global * walkSpeed / 2) * 0.01;
                 }
-                fpTorch.position.set(0.25 + bobX, -0.22 + bobY, -0.4);
+                fpTorch.position.set(0.25 + bobX, -0.28 + bobY, -0.45);
             }
         } else {
             if (fpTorch) fpTorch.visible = false;
@@ -497,42 +530,52 @@ function animate() {
             }
         }
 
-        // Light pool point light updates (Distance Culling + pulse effect)
+        // Update all active wall torches (culling and flickering using embedded PointLights)
         const activeTorches = wallTorches.filter(wt => wt.userData.active);
         activeTorches.forEach(wt => {
             wt.userData.distanceToPlayer = playerPos.distanceTo(wt.userData.lightWorldPos);
         });
-        
+
+        // Sort active torches by distance to player
         activeTorches.sort((a, b) => a.userData.distanceToPlayer - b.userData.distanceToPlayer);
-        
-        for (let i = 0; i < lightPool.length; i++) {
-            const light = lightPool[i];
-            // Only enable light if within 12.0m radius (optimized down from 16.0m)
-            if (i < activeTorches.length && activeTorches[i].userData.distanceToPlayer < 12.0) {
-                const wt = activeTorches[i];
-                light.position.copy(wt.userData.lightWorldPos);
-                
-                const randOffset = wt.userData.id * 1.5;
-                const pulse = Math.sin(t_global * 10 + randOffset) * 0.08 + Math.cos(t_global * 17 + randOffset) * 0.04;
-                light.intensity = 1.2 + pulse * 1.5;
-                light.color.copy(torchColor);
-                
-                wt.userData.flame.scale.setScalar(wt.userData.baseScale + pulse);
-                wt.userData.flame.material.color.copy(torchColor);
-                wt.userData.flame.material.emissive.copy(torchColor);
-            } else {
-                light.intensity = 0;
-            }
-        }
-        
-        // Animate remaining distant flames (visual scale only, no active GPU pointlight)
-        for (let i = 4; i < activeTorches.length; i++) {
+
+        for (let i = 0; i < activeTorches.length; i++) {
             const wt = activeTorches[i];
             const randOffset = wt.userData.id * 1.5;
-            const pulse = Math.sin(t_global * 10 + randOffset) * 0.08 + Math.cos(t_global * 17 + randOffset) * 0.04;
+            const pulse = Math.sin(t_global * 12 + randOffset) * 0.08
+                + Math.cos(t_global * 23 + randOffset) * 0.04
+                + (Math.random() - 0.5) * 0.02; // Realistic high-frequency noise
+
+            // 1. Scale and color the visual flame mesh
             wt.userData.flame.scale.setScalar(wt.userData.baseScale + pulse);
             wt.userData.flame.material.color.copy(torchColor);
             wt.userData.flame.material.emissive.copy(torchColor);
+
+            // 2. Perform distance-based SpotLight updates and culling (max 4 nearest active lights)
+            if (i < 4 && wt.userData.distanceToPlayer < 12.0) {
+                if (wt.spotLight) {
+                    wt.spotLight.intensity = 4.0 + pulse * 2.0;
+                    wt.spotLight.color.copy(torchColor);
+                    wt.spotLight.visible = true;
+
+                    // Shadow Culling: only the single closest active wall torch casts shadows to save GPU resources
+                    if (i === 0 && wt.userData.distanceToPlayer < 9.0) {
+                        wt.spotLight.castShadow = true;
+                        wt.spotLight.shadow.mapSize.width = 512; // SpotLight shadows are 6x cheaper, so 512 is high quality and fast
+                        wt.spotLight.shadow.mapSize.height = 512;
+                        wt.spotLight.shadow.bias = -0.002;
+                        wt.spotLight.shadow.normalBias = 0.015;
+                    } else {
+                        wt.spotLight.castShadow = false;
+                    }
+                }
+            } else {
+                if (wt.spotLight) {
+                    wt.spotLight.intensity = 0;
+                    wt.spotLight.visible = false;
+                    wt.spotLight.castShadow = false;
+                }
+            }
         }
 
         // Raycast for crosshair activation

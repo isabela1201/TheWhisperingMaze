@@ -20,7 +20,7 @@ const DADOS_HISTORIAS = [
 ];
 
 const CONFIG = {
-    MODEL_PATH: 'labirintov4.glb',
+    MODEL_PATH: 'labirintov5.glb',
     PLAYER_HEIGHT: 1.6,
     PLAYER_SPEED: 0.12,
     PLAYER_SPRINT: 0.22,

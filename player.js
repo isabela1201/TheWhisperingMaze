@@ -162,22 +162,48 @@ function createPlayerBody() {
     rightElbowJoint.add(rightHand);
     playerBody.rightHand = rightHand;
 
-    // Low-poly torch mesh in right hand
+    // Low-poly torch mesh in right hand (styled to match the new design)
     const torchMesh = new THREE.Group();
     
     const torchHandle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.02, 0.015, 0.25, 5),
-        new THREE.MeshStandardMaterial({ color: 0x4a2e15, roughness: 0.9, flatShading: true })
+        new THREE.CylinderGeometry(0.018, 0.012, 0.28, 5),
+        new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8, metalness: 0.1, flatShading: true })
     );
-    torchHandle.position.y = 0.125;
+    torchHandle.position.y = 0.0;
     torchHandle.castShadow = true;
     torchMesh.add(torchHandle);
 
-    const torchFlame = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.05, 0),
-        new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xff5500, emissiveIntensity: 1, flatShading: true })
+    const torchCup = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.02, 0.06, 5),
+        new THREE.MeshStandardMaterial({ color: 0xcd7f32, roughness: 0.4, metalness: 0.8, flatShading: true })
     );
-    torchFlame.position.y = 0.27;
+    torchCup.position.y = 0.16;
+    torchCup.castShadow = true;
+    torchMesh.add(torchCup);
+
+    const torchTopRing = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.042, 0.042, 0.015, 5, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0xcd7f32, roughness: 0.4, metalness: 0.8, flatShading: true })
+    );
+    torchTopRing.position.y = 0.24;
+    torchMesh.add(torchTopRing);
+
+    // Minor decorative ribs
+    for (let i = 0; i < 5; i++) {
+        const rib = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.004, 0.004, 0.06, 4),
+            new THREE.MeshStandardMaterial({ color: 0xcd7f32, roughness: 0.4, metalness: 0.8, flatShading: true })
+        );
+        const angle = (i * Math.PI * 2) / 5;
+        rib.position.set(Math.cos(angle) * 0.038, 0.20, Math.sin(angle) * 0.038);
+        torchMesh.add(rib);
+    }
+
+    const torchFlame = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.045, 0),
+        new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xff5500, emissiveIntensity: 2.0, flatShading: true })
+    );
+    torchFlame.position.y = 0.25;
     torchMesh.add(torchFlame);
 
     torchMesh.position.copy(rightHand.position);
@@ -321,29 +347,81 @@ function createPlayerBody() {
 function createFirstPersonTorch() {
     fpTorch = new THREE.Group();
     
-    const handleMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9, flatShading: true });
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.01, 0.22, 5), handleMat);
-    handle.position.y = 0.11;
-    fpTorch.add(handle);
-    
-    const cupMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.3, metalness: 0.8, flatShading: true });
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.015, 0.05, 5), cupMat);
-    cup.position.y = 0.20;
-    fpTorch.add(cup);
-    
-    const flameMat = new THREE.MeshStandardMaterial({
-        color: 0xffaa00,
-        emissive: 0xff5500,
-        emissiveIntensity: 2.0,
+    // Materials
+    const metalMat = new THREE.MeshStandardMaterial({
+        color: 0xcd7f32, // Bronze
+        roughness: 0.4,
+        metalness: 0.8,
         flatShading: true
     });
-    const flame = new THREE.Mesh(new THREE.IcosahedronGeometry(0.04, 0), flameMat);
-    flame.position.y = 0.25;
+    
+    const handleMat = new THREE.MeshStandardMaterial({
+        color: 0x5c4033, // Dark Wood
+        roughness: 0.8,
+        metalness: 0.1,
+        flatShading: true
+    });
+
+    const pitchMat = new THREE.MeshStandardMaterial({
+        color: 0x111111, // Glossy pitch/coal
+        roughness: 0.9,
+        metalness: 0.1,
+        flatShading: true
+    });
+
+    const flameMat = new THREE.MeshStandardMaterial({
+        color: 0xffaa00,
+        emissive: 0xff4400,
+        emissiveIntensity: 3.0,
+        flatShading: true,
+        transparent: true,
+        opacity: 0.95
+    });
+
+    // 1. Handle (centered at y=0, extends from y=-0.175 to y=0.175)
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.016, 0.35, 6), handleMat);
+    handle.position.set(0, 0, 0);
+    fpTorch.add(handle);
+
+    // 2. Cup
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.025, 0.08, 6), metalMat);
+    cup.position.set(0, 0.21, 0);
+    fpTorch.add(cup);
+
+    // 3. Top Ring
+    const topRing = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.02, 6, 1, true), metalMat);
+    topRing.position.set(0, 0.32, 0);
+    fpTorch.add(topRing);
+
+    // 4. Vertical Ribs
+    for (let i = 0; i < 6; i++) {
+        const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.08, 4), metalMat);
+        const angle = (i * Math.PI) / 3;
+        const radiusTop = 0.055;
+        const radiusBottom = 0.045;
+        rib.position.set(
+            Math.cos(angle) * (radiusTop + radiusBottom) / 2,
+            0.27,
+            Math.sin(angle) * (radiusTop + radiusBottom) / 2
+        );
+        rib.rotation.z = -Math.sin(angle) * 0.12;
+        rib.rotation.x = Math.cos(angle) * 0.12;
+        fpTorch.add(rib);
+    }
+
+    // 5. Molten Pitch Core
+    const pitch = new THREE.Mesh(new THREE.DodecahedronGeometry(0.035), pitchMat);
+    pitch.position.set(0, 0.24, 0);
+    fpTorch.add(pitch);
+
+    // 6. Dynamic Flame Mesh
+    const flame = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 0), flameMat);
+    flame.position.set(0, 0.33, 0);
     fpTorch.add(flame);
     fpTorch.flame = flame;
     
-    // Position at lower right of screen
-    fpTorch.position.set(0.25, -0.22, -0.4);
+    // Position at lower right of screen (lowered and pushed forward slightly to look cinematic and fit the camera fov)
+    fpTorch.position.set(0.25, -0.28, -0.45);
     fpTorch.rotation.set(0.15, -0.3, 0.05);
     
     camera.add(fpTorch);
