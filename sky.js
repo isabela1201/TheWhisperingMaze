@@ -1,15 +1,19 @@
 // sky.js
 // Ambiente celestial dinâmico com Sol, Lua, Estrelas e Nuvens Processuais
 
-const SkyEnvironment = {
+import * as THREE from 'three';
+import * as state from './state.js';
+
+export const SkyEnvironment = {
     skyGroup: null,
     sunGroup: null,   
     moonGroup: null,
     stars: null,
     clouds: [],
     cloudMats: [],
-    moonPlane: null,   // PlaneGeometry mesh com PNG da lua
-    moonPlaneMat: null,// ref para animar opacidade da lua
+    // Refs antigas e do PNG removidas
+    moonGlowMat: null, // ref para animar opacidade do brilho da lua
+    moonMeshMat: null, // ref para controlar a opacidade da base da lua
 
     init: function (scene) {
         // Grupo que contém todos os elementos celestes
@@ -33,54 +37,46 @@ const SkyEnvironment = {
             transparent: true,
             opacity: 0.4,
             blending: THREE.AdditiveBlending,
+            depthWrite: false,
             fog: false
         });
         const sunGlow = new THREE.Mesh(sunGlowGeom, sunGlowMat);
         this.sunGroup.add(sunGlow);
 
-        // --- PNG DA LUA (PlaneGeometry que olha sempre para a câmara) ---
-        const texLoader = new THREE.TextureLoader();
-        texLoader.load('assets/sky/lua.png', (moonTex) => {
-            moonTex.center.set(0.5, 0.5);
-            this.moonPlaneMat = new THREE.MeshBasicMaterial({
-                map: moonTex,
-                transparent: true,
-                side: THREE.DoubleSide,
-                depthTest: false,   // ignora o depth buffer
-                depthWrite: false,
-                fog: false,
-                opacity: 0
-            });
-            this.moonPlane = new THREE.Mesh(
-                new THREE.PlaneGeometry(32, 32),
-                this.moonPlaneMat
-            );
-            this.moonPlane.renderOrder = 1;
-            this.skyGroup.add(this.moonPlane);
-        });
-
-        // --- LUA ---
+        // --- LUA (Grupo principal de órbita - RESTAURADO SÍNCRONO) ---
         this.moonGroup = new THREE.Group();
         this.skyGroup.add(this.moonGroup);
 
-        // Esfera perfeita (base de cor)
-        const moonGeom = new THREE.SphereGeometry(14, 32, 32);
-        const moonMat = new THREE.MeshBasicMaterial({ color: 0xeef4ff, fog: false });
-        const moonMesh = new THREE.Mesh(moonGeom, moonMat);
+        // [RESTAURADO E REDUZIDO] Esfera perfeita síncrona
+        // Tamanho reduzido para raio 10 (era 14 no antigo e 120 no PNG)
+        const moonGeom = new THREE.SphereGeometry(10, 32, 32); 
+        this.moonMeshMat = new THREE.MeshBasicMaterial({ 
+            color: 0xeef4ff, 
+            transparent: true,
+            opacity: 0, // Iniciado em 0, controlado dinamicamente no update
+            fog: false 
+        });
+        const moonMesh = new THREE.Mesh(moonGeom, this.moonMeshMat);
         this.moonGroup.add(moonMesh);
 
-        // Glow da Lua
-        const moonGlowGeom = new THREE.SphereGeometry(18, 16, 16);
-        const moonGlowMat = new THREE.MeshBasicMaterial({
+        // [RESTAURADO E REDUZIDO] Brilho síncrono da Lua
+        // Tamanho reduzido para raio 13 para abraçar a esfera
+        const moonGlowGeom = new THREE.SphereGeometry(13, 16, 16); 
+        this.moonGlowMat = new THREE.MeshBasicMaterial({
             color: 0xaaccff,
             transparent: true,
-            opacity: 0.3,
+            opacity: 0, // Iniciado em 0, controlado dinamicamente no update
             blending: THREE.AdditiveBlending,
+            // SEM depthTest: false para evitar o orbe transparente desfocado
+            depthWrite: false, 
             fog: false
         });
-        const moonGlow = new THREE.Mesh(moonGlowGeom, moonGlowMat);
+        const moonGlow = new THREE.Mesh(moonGlowGeom, this.moonGlowMat);
         this.moonGroup.add(moonGlow);
 
+        // Toda a secção de carregar o PNG (assets/sky/lua.png) foi removida.
+
+        // --- ESTRELAS ---
         const starGeom = new THREE.BufferGeometry();
         const starCount = 250;
         const starPos = new Float32Array(starCount * 3);
@@ -107,9 +103,7 @@ const SkyEnvironment = {
         this.stars = new THREE.Points(starGeom, starMat);
         this.skyGroup.add(this.stars);
 
-        // --- NUVENS (Processuais Baseadas no código no pdf do Josh Marinacci) ---
-        
-        // Funções de formatação usando BufferGeometry
+        // --- NUVENS PROCESSUAIS ---
         const map = (val, smin, smax, emin, emax) => (emax - emin) * (val - smin) / (smax - smin) + emin;
 
         const jitter = (geo, per) => {
@@ -130,7 +124,6 @@ const SkyEnvironment = {
             }
         };
 
-        // 3 esferas como o pdf ensina
         const cloudGeoms = [];
         
         const tuft1 = new THREE.SphereGeometry(1.5, 7, 8);
@@ -145,7 +138,6 @@ const SkyEnvironment = {
         tuft3.translate(0, 0, 0);
         cloudGeoms.push(tuft3);
 
-    
         cloudGeoms.forEach(geo => {
             jitter(geo, 0.2);
             chopBottom(geo, -0.5);
@@ -155,7 +147,6 @@ const SkyEnvironment = {
         for (let i = 0; i < 12; i++) {
             const cloudGroup = new THREE.Group();
             
-            // manter as cores originais do projeto
             const mat = new THREE.MeshLambertMaterial({
                 color: 'white',
                 emissive: 0xa1b7e3, 
@@ -171,40 +162,36 @@ const SkyEnvironment = {
                 cloudGroup.add(mesh);
             });
 
-            // Dar grandes variações de escala às nuvens como querias anteriormente
             const globalScale = 4.0 + Math.random() * 6.0; 
             cloudGroup.scale.set(globalScale, globalScale, globalScale);
-
-            // rodar as nuvens em Y 
             cloudGroup.rotation.y = Math.random() * Math.PI * 2;
 
             cloudGroup.position.set(
                 (Math.random() - 0.5) * 800,
-                70 + Math.random() * 130, // Alturas variadas
+                70 + Math.random() * 130, 
                 (Math.random() - 0.5) * 800
             );
 
             this.skyGroup.add(cloudGroup);
             this.clouds.push({ 
                 group: cloudGroup, 
-                speed: (0.2 + Math.random() * 0.3) / globalScale // Vento consoante tamanho e peso
+                speed: (0.2 + Math.random() * 0.3) / globalScale 
             });
         }
     },
 
     update: function (n, lightDir) {
         if (!this.skyGroup) return;
+        
+        // Centrar o skyGroup na câmara
+        if (state.camera) {
+            this.skyGroup.position.copy(state.camera.position);
+        }
 
         const R = 300;
-        
-        // Usar órbita matemática perfeita baseada no n (0..1)
-        // Para que o Sol e a Lua rodem no sentido -X para +X, construímos um ângulo.
         const angle = n * Math.PI * 2;
         
         // Posição do Sol
-        // n=0 (Amanhecer): começa em -X (esquerda).
-        // n=0.25 (Meio-dia): topo em +Y.
-        // n=0.5 (Pôr-do-sol): acaba em +X (direita).
         const sunX = -Math.cos(angle) * R;
         const sunY = Math.sin(angle) * R;
         const Z = 20; 
@@ -226,20 +213,21 @@ const SkyEnvironment = {
         const nightFactor = Math.pow(nightVal, 1.5);
 
         this.stars.material.opacity = nightFactor * 0.95;
-
-        // Estrelas rodam rigorosamente de acordo com a mesma fórmula orbital
         this.stars.rotation.z = -angle;
 
-        // --- PNG DA LUA: actualizar posição + lookAt câmara ---
-        // O plano segue a posição world-space do grupo lua e olha para o jogador.
-        if (this.moonPlane && camera) {
-            this.moonPlane.position.copy(this.moonGroup.position);
-            this.moonPlane.lookAt(camera.position);
-            // Fade: invisível de dia, aparece à noite
-            this.moonPlaneMat.opacity = nightFactor;
+        // [MODIFICADO] A secção de actualizar o PlaneGeometry do PNG foi removida.
+
+        // [MODIFICADO] Controlar a opacidade da esfera sólida síncrona
+        if (this.moonMeshMat) {
+            this.moonMeshMat.opacity = nightFactor;
         }
 
-        // --- ANIMAÇÃO DAS NUVENS ---
+        // [MODIFICADO] Controlar a opacidade do brilho síncrono
+        if (this.moonGlowMat) {
+            this.moonGlowMat.opacity = nightFactor * 0.35;
+        }
+
+        // --- ANIMAÇÃO E CORES DAS NUVENS ---
         const dayColor = new THREE.Color(0xffffff);
         const nightColor = new THREE.Color(0x3a4b6b);
         const dayEmissive = new THREE.Color(0x000000);

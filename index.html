@@ -6,6 +6,17 @@
   <title>Labirinto — Escapa se Conseguires</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+
+  <!-- Three.js r184 via importmap -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/",
+        "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.2/build/index.module.js"
+      }
+    }
+  </script>
 </head>
 <body>
 
@@ -26,13 +37,13 @@
 
 <div id="papiro-overlay" style="display: none;">
     <div id="papiro-janela">
-        <button id="papiro-btn-fechar-x" onclick="fecharPapiro()">&times;</button>
+        <button id="papiro-btn-fechar-x" onclick="window._game.fecharPapiro()">&times;</button>
         
         <h2 id="papiro-titulo">Fragmento Encontrado</h2>
         <div id="papiro-texto">O texto do enigma vai aparecer aqui...</div>
         
         <div class="papiro-rodape">
-            <button id="papiro-btn-acao" onclick="fecharPapiro()">Compreendi o Enigma</button>
+            <button id="papiro-btn-acao" onclick="window._game.avancarPapiro()">Compreendi o Enigma</button>
         </div>
     </div>
 </div>
@@ -41,12 +52,37 @@
 <!-- Curiosity popup for non-collectible objects -->
 <div id="curiosidade-overlay" style="display: none;">
   <div id="curiosidade-janela">
-    <button id="curiosidade-btn-fechar" onclick="fecharPopupCuriosidade()">&#x2715;</button>
+    <button id="curiosidade-btn-fechar" onclick="window._game.fecharPopupCuriosidade()">&#x2715;</button>
     <div id="curiosidade-icone">🏛️</div>
     <h2 id="curiosidade-titulo">Curiosidade Minoica</h2>
     <div id="curiosidade-texto">Texto da curiosidade...</div>
     <div class="curiosidade-rodape">
-      <button id="curiosidade-btn-acao" onclick="fecharPopupCuriosidade()">Continuar a explorar</button>
+      <button id="curiosidade-btn-acao" onclick="window._game.fecharPopupCuriosidade()">Continuar a explorar</button>
+    </div>
+  </div>
+</div>
+<!-- Teleport Overlay (God Function) -->
+<div id="teleport-overlay" style="display: none;">
+  <div id="teleport-janela">
+    <h2 id="teleport-titulo">⚡ Teleporte Divino ⚡</h2>
+    <p style="font-size: 0.9rem; margin-bottom: 15px; color: #ccc;">Insira as coordenadas para onde deseja viajar:</p>
+    <div class="teleport-inputs">
+      <div class="teleport-field">
+        <label for="teleport-x">X</label>
+        <input type="number" id="teleport-x" step="0.1" onkeydown="if(event.key === 'Enter') window._game.confirmarTeleporte(); else if(event.key === 'Escape') window._game.fecharTeleporte();" />
+      </div>
+      <div class="teleport-field">
+        <label for="teleport-y">Y</label>
+        <input type="number" id="teleport-y" step="0.1" onkeydown="if(event.key === 'Enter') window._game.confirmarTeleporte(); else if(event.key === 'Escape') window._game.fecharTeleporte();" />
+      </div>
+      <div class="teleport-field">
+        <label for="teleport-z">Z</label>
+        <input type="number" id="teleport-z" step="0.1" onkeydown="if(event.key === 'Enter') window._game.confirmarTeleporte(); else if(event.key === 'Escape') window._game.fecharTeleporte();" />
+      </div>
+    </div>
+    <div class="teleport-botoes">
+      <button id="teleport-btn-confirmar" class="teleport-btn teleport-btn-confirmar" onclick="window._game.confirmarTeleporte()">Viajar</button>
+      <button id="teleport-btn-cancelar" class="teleport-btn teleport-btn-cancelar" onclick="window._game.fecharTeleporte()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -75,29 +111,46 @@
   </div>
 </div>
 
-<!-- Win screen -->
+<!-- Win screen / Credits -->
 <div id="win-screen" style="display:none;">
-  <div class="card">
-    <span class="card-emoji">🎉</span>
-    <h2>Escapaste!</h2>
-    <p>Conseguiste encontrar a saída.<br>Que aventureiro incrível!</p>
+  <div class="card win-card">
+    <span class="card-emoji">🌿</span>
+    <h2>Escapaste do Labirinto!</h2>
+    <p>O jardim sussurrante está agora em paz.<br>Obrigado por jogar.</p>
     <div id="win-time"></div>
-    <button id="restart-btn">🔄 Tentar novamente</button>
+
+    <div class="credits-box">
+      <div class="credits-title">✦ Créditos ✦</div>
+      <div class="credits-section">
+        <div class="credits-role">Conceito & Design</div>
+        <div class="credits-name">Isabela Ferreira</div>
+      </div>
+      <div class="credits-section">
+        <div class="credits-role">Programação 3D & Shaders</div>
+        <div class="credits-name">Isabela Ferreira</div>
+      </div>
+      <div class="credits-section">
+        <div class="credits-role">Arte & Modelos</div>
+        <div class="credits-name">Sketchfab Community (CC Licenses)</div>
+      </div>
+      <div class="credits-section">
+        <div class="credits-role">Narrativa</div>
+        <div class="credits-name">Inspirado na Lenda de Teseu e o Minotauro</div>
+      </div>
+      <div class="credits-section">
+        <div class="credits-role">Motor de Jogo</div>
+        <div class="credits-name">Three.js r184</div>
+      </div>
+      <div class="credits-divider">❦</div>
+      <div class="credits-quote">"O labirinto não era uma prisão — era um jardim à espera de ser libertado."</div>
+    </div>
+
+    <button id="restart-btn">🔄 Jogar novamente</button>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="config.js"></script>
-<script src="state.js"></script>
-<script src="ui.js"></script>
-<script src="sky.js"></script>
-<script src="particles.js"></script>
-<script src="player.js"></script>
-<script src="environment.js"></script>
-<script src="objects.js"></script>
-<script src="door.js"></script>
-<script src="main.js"></script>
+<!-- Main entry point as ES module -->
+<script type="module" src="main.js"></script>
 
 </body>
 </html>

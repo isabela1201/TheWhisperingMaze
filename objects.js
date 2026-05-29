@@ -8,6 +8,12 @@
 //  - Non-collectibles (minotauro, golfinho, amfora, fonte — GLB com AnimationMixer):
 //   → YELLOW ring. Ring hides when popup is closed. Model stays forever.
 
+import * as THREE from 'three';
+import { getGLTFLoader } from './loaderHelper.js';
+import * as state from './state.js';
+import { S } from './state.js';
+import { showNotification, abrirPapiroHistoria } from './ui.js';
+
 // ─── Curiosity popup content ─────────────────────────────────────────────────
 const DADOS_POPUP = {
     minotauro: {
@@ -39,14 +45,85 @@ let espada_coletada       = false;
 let estatua_girl_coletada = false;
 let portaDesbloqueada     = false;
 
-let portaSaida = null; // door leaf assigned by door.js
+export let portaSaida = null; // door leaf assigned by door.js
 
 // AnimationMixer for fonte.glb built-in water animation
 let _fonteMixer = null;
 
+// ─── Main collectible loader (Cyan ring) ──────────────────────────────────────
+export function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, isColecionavel = false, idColecionavel = null) {
+    const loader = getGLTFLoader();
+
+    loader.load(path, (gltf) => {
+        const model = gltf.scene;
+        model.scale.setScalar(escala);
+
+        // Calculate Bounding Box for floor alignment
+        model.traverse((child) => {
+            if (child.isMesh) child.geometry.computeBoundingBox();
+        });
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+
+        const floorOffset = -0.5;
+        const alturaCompensada = (posY === 0) ? (size.y / 2) : posY;
+        const finalY = floorOffset + alturaCompensada;
+
+        model.position.set(posX, finalY, posZ);
+        model.rotation.y = grausY * (Math.PI / 180);
+
+        state.scene.add(model);
+        state.mazeObjects.push(model);
+
+        // If collectible, create glow ring
+        if (isColecionavel) {
+            const ringGeo = new THREE.RingGeometry(size.x * 0.6, size.x * 0.8, 32);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0x00aaff,          // Soft cyan glow
+                emissive: 0x00aaff,
+                emissiveIntensity: 2.0,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.6
+            });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+
+            ringMesh.rotation.x = -Math.PI / 2;
+            ringMesh.position.set(posX, finalY + 0.05, posZ);
+
+            state.scene.add(ringMesh);
+
+            ringMesh.userData = { id: idColecionavel, baseY: ringMesh.position.y };
+            state.aneisLuminosos.push(ringMesh);
+
+            state.colecionaveis.push({
+                id: idColecionavel,
+                model: model,
+                ring: ringMesh,
+                pos: new THREE.Vector3(posX, finalY, posZ),
+                coletado: false
+            });
+        }
+
+        // Shadows config
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                if (child.material && child.material.map) {
+                    // Limit anisotropy to 4 to save GPU resources
+                    child.material.map.anisotropy = Math.min(state.renderer.capabilities.getMaxAnisotropy(), 4);
+                }
+            }
+        });
+
+    }, undefined, (error) => console.error(error));
+}
+
 // ─── Non-collectible GLB loader (Yellow ring + proximity popup) ──────────────
-function adicionarNaoColecionavel(path, posX, posZ, grausY, escala, popupKey) {
-    const loader = new THREE.GLTFLoader();
+export function adicionarNaoColecionavel(path, posX, posZ, grausY, escala, popupKey) {
+    const loader = getGLTFLoader();
     loader.load(path, (gltf) => {
         const model = gltf.scene;
         model.scale.setScalar(escala);
@@ -63,101 +140,74 @@ function adicionarNaoColecionavel(path, posX, posZ, grausY, escala, popupKey) {
             if (c.isMesh) {
                 c.castShadow = c.receiveShadow = true;
                 if (c.material && c.material.map)
-                    c.material.map.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
+                    c.material.map.anisotropy = Math.min(state.renderer.capabilities.getMaxAnisotropy(), 4);
             }
         });
 
-        scene.add(model);
-        mazeObjects.push(model);
-
-        // Yellow glow ring
-        const ri = Math.max(size.x, size.z) * 0.55;
-        const ro = ri * (4 / 3);
-        const ringMat = new THREE.MeshStandardMaterial({
-            color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 2.5,
-            side: THREE.DoubleSide, transparent: true, opacity: 0.7
-        });
-        const anel = new THREE.Mesh(new THREE.RingGeometry(ri, ro, 36), ringMat);
-        anel.rotation.x = -Math.PI / 2;
-        anel.position.set(posX, finalY + 0.05, posZ);
-        anel.userData = { baseY: anel.position.y };
-        scene.add(anel);
-        aneisLuminosos.push(anel);
+        state.scene.add(model);
+        state.mazeObjects.push(model);
 
         objetosProximidade.push({
             key: popupKey,
             pos: new THREE.Vector3(posX, finalY, posZ),
-            anel, lido: false, ativo: false
+            lido: false, ativo: false
         });
 
     }, undefined, err => console.error('[adicionarNaoColecionavel]', path, err));
 }
 
 // ─── Fonte GLB — loads fonte.glb and plays its built-in morph animation ───────
-function adicionarFonte(posX, posZ) {
-    const loader = new THREE.GLTFLoader();
+export function adicionarFonte(posX, posZ) {
+    const loader = getGLTFLoader();
     loader.load('assets/elements/fonte.glb', (gltf) => {
-        const model = gltf.scene;
+        setTimeout(() => {
+            const model = gltf.scene;
 
-        model.traverse(c => { if (c.isMesh) c.geometry.computeBoundingBox(); });
-        const size = new THREE.Vector3();
-        new THREE.Box3().setFromObject(model).getSize(size);
+            model.traverse(c => { if (c.isMesh) c.geometry.computeBoundingBox(); });
+            const size = new THREE.Vector3();
+            new THREE.Box3().setFromObject(model).getSize(size);
 
-        const finalY = -0.5 + size.y / 2;
-        model.position.set(posX, finalY, posZ);
+            const finalY = -0.5 + size.y / 2;
+            model.position.set(posX, finalY, posZ);
 
-        model.traverse(c => {
-            if (c.isMesh) {
-                c.castShadow = c.receiveShadow = true;
-                if (c.material && c.material.map)
-                    c.material.map.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 4);
-            }
-        });
-
-        scene.add(model);
-        mazeObjects.push(model);
-
-        // Play all built-in animation clips (morph water)
-        if (gltf.animations && gltf.animations.length > 0) {
-            _fonteMixer = new THREE.AnimationMixer(model);
-            gltf.animations.forEach(clip => {
-                _fonteMixer.clipAction(clip).setLoop(THREE.LoopRepeat, Infinity).play();
+            model.traverse(c => {
+                if (c.isMesh) {
+                    c.castShadow = c.receiveShadow = true;
+                    if (c.material && c.material.map)
+                        c.material.map.anisotropy = Math.min(state.renderer.capabilities.getMaxAnisotropy(), 4);
+                }
             });
-        }
 
-        // Yellow proximity ring
-        const ri = Math.max(size.x, size.z) * 0.55;
-        const ro = ri * (4 / 3);
-        const ringMat = new THREE.MeshStandardMaterial({
-            color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 2.5,
-            side: THREE.DoubleSide, transparent: true, opacity: 0.7
-        });
-        const anel = new THREE.Mesh(new THREE.RingGeometry(ri, ro, 36), ringMat);
-        anel.rotation.x = -Math.PI / 2;
-        anel.position.set(posX, finalY + 0.05, posZ);
-        anel.userData = { baseY: anel.position.y };
-        scene.add(anel);
-        aneisLuminosos.push(anel);
+            state.scene.add(model);
+            state.mazeObjects.push(model);
 
-        objetosProximidade.push({
-            key: 'fonte',
-            pos: new THREE.Vector3(posX, finalY, posZ),
-            anel, lido: false, ativo: false
-        });
+            // Play all built-in animation clips (morph water)
+            if (gltf.animations && gltf.animations.length > 0) {
+                _fonteMixer = new THREE.AnimationMixer(model);
+                gltf.animations.forEach(clip => {
+                    _fonteMixer.clipAction(clip).setLoop(THREE.LoopRepeat, Infinity).play();
+                });
+            }
 
+            objetosProximidade.push({
+                key: 'fonte',
+                pos: new THREE.Vector3(posX, finalY, posZ),
+                lido: false, ativo: false
+            });
+        }, 50);
     }, undefined, err => console.error('[adicionarFonte]', err));
 }
 
 // ─── Per-frame fountain update — advances the AnimationMixer ────────────────
 // Called from animate() with delta (seconds since last frame).
-function atualizarFonte(delta) {
+export function atualizarFonte(delta) {
     if (_fonteMixer) _fonteMixer.update(delta);
 }
 
 // ─── Curiosity popup ─────────────────────────────────────────────────────────
 let _popupAtivoEntry = null;
 
-function abrirPopupCuriosidade(entry) {
+export function abrirPopupCuriosidade(entry) {
     const dados = DADOS_POPUP[entry.key];
     if (!dados) return;
 
@@ -167,39 +217,33 @@ function abrirPopupCuriosidade(entry) {
     document.getElementById('curiosidade-texto').textContent  = dados.texto;
     document.getElementById('curiosidade-overlay').style.display = 'flex';
 
-    paused = true;
+    S.setPaused(true);
     document.exitPointerLock();
 }
 
-function fecharPopupCuriosidade() {
+export function fecharPopupCuriosidade() {
     document.getElementById('curiosidade-overlay').style.display = 'none';
-    paused = false;
+    S.setPaused(false);
 
     if (_popupAtivoEntry) {
         _popupAtivoEntry.lido = true;
-        const anel = _popupAtivoEntry.anel;
-        if (anel) {
-            anel.visible = false;
-            const idx = aneisLuminosos.indexOf(anel);
-            if (idx !== -1) aneisLuminosos.splice(idx, 1);
-        }
         _popupAtivoEntry = null;
     }
 
-    if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+    if (state.renderer && state.renderer.domElement) state.renderer.domElement.requestPointerLock();
 }
 
 // ─── Proximity check — call every frame ──────────────────────────────────────
 const POPUP_DISTANCE      = 3.0;
 const POPUP_HIDE_DISTANCE = 4.5;
 
-function verificarProximidade() {
-    if (!gameStarted || gameWon || paused) return;
+export function verificarProximidade() {
+    if (!state.gameStarted || state.gameWon || state.paused) return;
 
     for (const obj of objetosProximidade) {
         if (obj.lido) continue;
 
-        const dist = playerPos.distanceTo(obj.pos);
+        const dist = state.playerPos.distanceTo(obj.pos);
 
         if (dist < POPUP_DISTANCE && !obj.ativo) {
             obj.ativo = true;
@@ -208,9 +252,9 @@ function verificarProximidade() {
             obj.ativo = false;
             if (_popupAtivoEntry === obj) {
                 document.getElementById('curiosidade-overlay').style.display = 'none';
-                paused = false;
+                S.setPaused(false);
                 _popupAtivoEntry = null;
-                if (renderer && renderer.domElement) renderer.domElement.requestPointerLock();
+                if (state.renderer && state.renderer.domElement) state.renderer.domElement.requestPointerLock();
             }
         }
     }
@@ -219,14 +263,14 @@ function verificarProximidade() {
 // ─── Door unlock (triggered by collecting espada id=1 + estatua_girl id=2) ───
 // historiasColetadas[] is written by the existing abrirPapiroHistoria() when
 // the player walks over a collectible registered via adicionarObjetoFixo.
-function verificarColecionaveisEspeciais() {
-    if (!gameStarted || gameWon) return;
+export function verificarColecionaveisEspeciais() {
+    if (!state.gameStarted || state.gameWon) return;
 
-    if (historiasColetadas[1] && !espada_coletada) {
+    if (state.historiasColetadas[1] && !espada_coletada) {
         espada_coletada = true;
         verificarDesbloqueioPorta();
     }
-    if (historiasColetadas[2] && !estatua_girl_coletada) {
+    if (state.historiasColetadas[2] && !estatua_girl_coletada) {
         estatua_girl_coletada = true;
         verificarDesbloqueioPorta();
     }
@@ -246,7 +290,7 @@ function abrirPortaSaida() {
     const duracao = 1800;
     const inicio  = performance.now();
     const a0 = portaSaida.rotation.y;
-    const a1 = a0 + Math.PI * 0.85;
+    const a1 = a0 - Math.PI * 0.5;
 
     function animarPorta(now) {
         const t    = Math.min((now - inicio) / duracao, 1);
@@ -258,18 +302,132 @@ function abrirPortaSaida() {
 }
 
 // ─── Scene population — called from init() ───────────────────────────────────
-function popularCena() {
+export function popularCena() {
     // Collectibles — CYAN ring, model vanishes on pickup, opens story papiro
     // adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala, isColecionavel, idColecionavel)
     adicionarObjetoFixo('assets/elements/novelo_final.glb', 17.22, 0, -1,    212, 5, true, 0);
     adicionarObjetoFixo('assets/elements/espada.glb',       17.04, 0,  2.27,  13, 1, true, 1);
-    adicionarObjetoFixo('assets/elements/estatua_girl.glb', 24.29, 0,  7.7,   67, 1, true, 2);
+    adicionarObjetoFixo('assets/elements/estatua_girl.glb', 24.29, 0,  7.7,   247, 1, true, 2);
 
     // Non-collectibles — YELLOW ring, curiosity popup, model stays
-    adicionarNaoColecionavel('assets/elements/minotauro.glb',         -19.06, -14.166,   4, 0.2, 'minotauro');
-    adicionarNaoColecionavel('assets/elements/dolphin_sculpture.glb',  -8.65,  -20.29, 191, 1,   'dolphin_sculpture');
+    adicionarNaoColecionavel('assets/elements/minotauro.glb',         -10.34,  -24.04, 13, 0.2, 'minotauro');
+    adicionarNaoColecionavel('assets/elements/dolphin_sculpture.glb',  -19.06, -14.166,   94, 1,   'dolphin_sculpture');
     adicionarNaoColecionavel('assets/elements/amfora.glb',            -21.07,   29.41, 238, 1,   'amfora');
 
     // Fonte GLB with built-in AnimationMixer water animation
     adicionarFonte(0, 0);
+
+    // Whisp de instruções inicial na origem
+    criarWhispInstrucoes();
+}
+
+// ─── Export setter for portaSaida (used by door.js) ──────────────────────────
+export function setPortaSaida(doorLeaf) {
+    portaSaida = doorLeaf;
+}
+
+// ─── Criar o Whisp de Instruções Inicial ──────────────────────────────────────
+export function criarWhispInstrucoes() {
+    const group = new THREE.Group();
+    group.position.set(0, 0.8, 0); // Posicionada na origem e altura do peito
+
+    // 1. Núcleo central (Esfera com Amarelo quente)
+    const coreGeo = new THREE.SphereGeometry(0.12, 32, 32);
+    const coreMat = new THREE.MeshBasicMaterial({
+        color: 0xffcc00, // Amarelo mais suave e acolhedor
+        transparent: true,
+        opacity: 0.95
+    });
+    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+    group.add(coreMesh);
+
+    // 2. Brilho Alaranjado (Única aura, para não ser exagerado)
+    const glowGeo = new THREE.SphereGeometry(0.35, 32, 32);
+    const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xff5500, // Laranja mágico
+        transparent: true,
+        opacity: 0.4, // Opacidade reduzida para não estourar a luz
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+    group.add(glowMesh);
+
+    // 3. Subgrupo para os pirilampos orgânicos
+    const pirilamposGroup = new THREE.Group();
+    group.add(pirilamposGroup);
+
+    const pirilampoMat = new THREE.MeshBasicMaterial({
+        color: 0xfff3cc,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    const numPirilampos = 14;
+    for (let i = 0; i < numPirilampos; i++) {
+        const pirilampoGeo = new THREE.SphereGeometry(0.015, 8, 8);
+        const pirilampo = new THREE.Mesh(pirilampoGeo, pirilampoMat);
+
+        pirilampo.userData = {
+            angle: Math.random() * Math.PI * 2,
+            speed: (0.005 + Math.random() * 0.01) * (Math.random() > 0.5 ? 1 : -1),
+            baseRadius: 0.20 + Math.random() * 0.35,
+            radiusFreq: 0.3 + Math.random() * 0.6,
+            baseY: (Math.random() - 0.5) * 0.05,
+            floatSpeed: 0.5 + Math.random() * 0.7,
+            phase: Math.random() * Math.PI * 2
+        };
+
+        pirilamposGroup.add(pirilampo);
+    }
+
+    // Mantém o movimento fluido e biológico dos pirilampos
+    coreMesh.onBeforeRender = function() {
+        pirilamposGroup.rotation.y = -group.rotation.y;
+
+        const time = performance.now() * 0.001;
+
+        pirilamposGroup.children.forEach(pirilampo => {
+            const data = pirilampo.userData;
+            data.angle += data.speed;
+            const raioDinamico = data.baseRadius + Math.sin(time * data.radiusFreq) * 0.12;
+
+            pirilampo.position.x = Math.cos(data.angle) * raioDinamico;
+            pirilampo.position.z = Math.sin(data.angle) * raioDinamico;
+            pirilampo.position.y = data.baseY + Math.sin(time * data.floatSpeed + data.phase) * 0.25;
+        });
+    };
+
+    // 4. Luz projetada no chão (intensidade e alcance reduzidos para não encandear)
+    const light = new THREE.PointLight(0xff6600, 1.5, 4.0); // Antes estava 3.0 de intensidade e 5.0 de alcance
+    light.position.set(0, 0, 0);
+    group.add(light);
+
+    state.scene.add(group);
+    S.setPapiroWhisp(group);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── Criar Cogumelos Low Poly Otimizados ─────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Helper: Cria uma geometria low poly de cogumelo clássico
+function criarGeometriaCogumeloA() {
+    // Haste (cilindro angular de 4 ou 5 lados)
+    const hasteGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.2, 5);
+    hasteGeo.translate(0, 0.1, 0); // Reposicionar para a base ficar no Y=0
+
+    // Chapéu (cone angular)
+    const chapeuGeo = new THREE.ConeGeometry(0.18, 0.18, 5);
+    chapeuGeo.translate(0, 0.25, 0);
+
+    // Mesclar as duas geometrias numa só (requer BufferGeometryUtils, 
+    // mas para simplificar e garantir compatibilidade, vamos usar um Group e InstancedMesh por geometria)
+    
+    // NOTA: Para InstancedMesh funcionar bem com formas mescladas complexas,
+    // o ideal é carregar um modelo .glb low-poly ou usar THREE.BufferGeometryUtils.mergeGeometries.
+    // Para este exemplo, vamos manter geometrias simples e únicas por InstancedMesh para garantir que funciona.
+    return chapeuGeo; // Vamos usar apenas o chapéu como geometria base para o instanciamento neste exemplo simples.
 }

@@ -1,10 +1,14 @@
 // particles.js
 // Handles optimized firefly (whispers) particle effects
 
+import * as THREE from 'three';
+import * as state from './state.js';
+import { S } from './state.js';
+
 const WHISPER_COUNT = 200; // Highly optimized (down from 200) for potato GPUs
 const WHISPER_SPREAD = 60;
 
-function createWhispers() {
+export function createWhispers() {
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(WHISPER_COUNT * 3);
     const colors = new Float32Array(WHISPER_COUNT * 3);
@@ -23,7 +27,7 @@ function createWhispers() {
             fadeIn: 0.8 + Math.random() * 0.8,     // Fade-in duration
             fadeOut: 0.8 + Math.random() * 0.8,     // Fade-out duration
         };
-        whisperMeta.push(meta);
+        state.whisperMeta.push(meta);
 
         positions[i * 3] = meta.baseX;
         positions[i * 3 + 1] = meta.baseY;
@@ -43,20 +47,20 @@ function createWhispers() {
         depthWrite: false, // Prevents sorting artifacts
     });
 
-    whispers = new THREE.Points(geometry, material);
-    scene.add(whispers);
+    S.setWhispers(new THREE.Points(geometry, material));
+    state.scene.add(state.whispers);
 }
 
-function updateWhispers(t, delta) {
-    if (!whispers) return;
-    const positions = whispers.geometry.attributes.position.array;
-    const colors = whispers.geometry.attributes.color.array;
+export function updateWhispers(t, delta) {
+    if (!state.whispers) return;
+    const positions = state.whispers.geometry.attributes.position.array;
+    const colors = state.whispers.geometry.attributes.color.array;
 
     // Target color: soft greenish cyan
     const TR = 0.4, TG = 1.0, TB = 0.8;
 
     for (let i = 0; i < WHISPER_COUNT; i++) {
-        const m = whisperMeta[i];
+        const m = state.whisperMeta[i];
         m.life += delta;
 
         // Respawn: new random positions and properties when life finishes
@@ -88,12 +92,12 @@ function updateWhispers(t, delta) {
         brightness = Math.max(0, Math.min(1, brightness));
 
         // Scale by whisper brightness multiplier (brighter at night)
-        const b = brightness * whisperBrightnessMult;
+        const b = brightness * state.whisperBrightnessMult;
         colors[i * 3] = TR * b;
         colors[i * 3 + 1] = TG * b;
         colors[i * 3 + 2] = TB * b;
     }
 
-    whispers.geometry.attributes.position.needsUpdate = true;
-    whispers.geometry.attributes.color.needsUpdate = true;
+    state.whispers.geometry.attributes.position.needsUpdate = true;
+    state.whispers.geometry.attributes.color.needsUpdate = true;
 }

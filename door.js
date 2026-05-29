@@ -5,11 +5,16 @@
 //  - Forged ironwork: top volute spirals + bottom spirals + handle + keyhole
 // The door starts closed/locked and swings open when portaDesbloqueada = true.
 
-function createExitDoor(posX, posY, posZ, rotationY) {
+import * as THREE from 'three';
+import * as state from './state.js';
+import { setPortaSaida } from './objects.js';
+
+export function createExitDoor(posX, posY, posZ, rotationY, scale = 1.0) {
     // All geometry is created in local space then added to a root group.
     const doorGroup = new THREE.Group();
     doorGroup.position.set(posX, posY, posZ);
     doorGroup.rotation.y = rotationY * (Math.PI / 180);
+    doorGroup.scale.setScalar(scale);
 
     // ── Colour palette ─────────────────────────────────────────────────────
     const stoneMat = new THREE.MeshStandardMaterial({
@@ -58,7 +63,7 @@ function createExitDoor(posX, posY, posZ, rotationY) {
     });
 
     // ── Dimensions ────────────────────────────────────────────────────────
-    const DOOR_W   = 1.4;  // width of door leaf
+    const DOOR_W   = 1.7;  // width of door leaf
     const DOOR_H   = 2.6;  // height of rectangular portion
     const ARCH_R   = DOOR_W / 2 + 0.05; // arch inner radius
     const FRAME_T  = 0.28; // stone frame thickness
@@ -73,11 +78,13 @@ function createExitDoor(posX, posY, posZ, rotationY) {
     const jambL   = new THREE.Mesh(jambGeo, stoneMat);
     jambL.position.set(-(DOOR_W / 2 + FRAME_T / 2), DOOR_H / 2, 0);
     archGroup.add(jambL);
+    state.mazeObjects.push(jambL); // Add collider
 
     // Right jamb
     const jambR = new THREE.Mesh(jambGeo, stoneMat);
     jambR.position.set(DOOR_W / 2 + FRAME_T / 2, DOOR_H / 2, 0);
     archGroup.add(jambR);
+    state.mazeObjects.push(jambR); // Add collider
 
     // Arch (semicircle of stone blocks)
     const ARCH_SEGMENTS = 16;
@@ -122,6 +129,7 @@ function createExitDoor(posX, posY, posZ, rotationY) {
     const doorMesh = new THREE.Mesh(doorGeo, woodMat);
     doorMesh.position.set(0, 0, -DOOR_D / 2);
     doorLeaf.add(doorMesh);
+    state.mazeObjects.push(doorMesh); // Add collider
 
     // Horizontal planks
     const PLANK_COUNT = 8;
@@ -265,56 +273,8 @@ function createExitDoor(posX, posY, posZ, rotationY) {
 
     doorGroup.add(doorLeaf);
 
-    // ── 4. Ivy / vegetation on stone arch ──────────────────────────────────
-    function addLeaf(px, py, pz, scale, mat) {
-        const leafGeo = new THREE.SphereGeometry(0.13 * scale, 5, 4);
-        const leaf = new THREE.Mesh(leafGeo, mat);
-        leaf.scale.set(1, 0.55, 0.7);
-        leaf.position.set(px, py, pz);
-        archGroup.add(leaf);
-    }
-
-    function addStem(x1, y1, x2, y2, z, mat) {
-        const pts = [new THREE.Vector3(x1, y1, z), new THREE.Vector3(x2, y2, z)];
-        const c = new THREE.CatmullRomCurve3(pts);
-        const g = new THREE.TubeGeometry(c, 4, 0.018, 5, false);
-        archGroup.add(new THREE.Mesh(g, mat));
-    }
-
-    // Left side ivy
-    const ivyPositionsL = [
-        [-DOOR_W / 2 - FRAME_T * 0.9, 0.4, -FRAME_D * 0.3],
-        [-DOOR_W / 2 - FRAME_T * 0.8, 0.9, -FRAME_D * 0.4],
-        [-DOOR_W / 2 - FRAME_T * 1.1, 1.5, FRAME_D * 0.2],
-        [-DOOR_W / 2 - FRAME_T * 0.7, 2.1, -FRAME_D * 0.35],
-        [-DOOR_W / 2 - FRAME_T * 0.9, 2.6, 0],
-        [-DOOR_W / 2 - FRAME_T * 0.5, 3.1, FRAME_D * 0.15],
-        [-DOOR_W / 2 - FRAME_T * 0.3, 3.5, -FRAME_D * 0.2],
-        [-0.1, DOOR_H + ARCH_R * 0.9, FRAME_D * 0.1],
-    ];
-    ivyPositionsL.forEach(([x, y, z]) => {
-        addLeaf(x, y, z, 1 + Math.random() * 0.4, Math.random() > 0.4 ? ivyMat : ivyLightMat);
-    });
-
-    // Right side ivy
-    const ivyPositionsR = [
-        [DOOR_W / 2 + FRAME_T * 0.9, 0.5, FRAME_D * 0.3],
-        [DOOR_W / 2 + FRAME_T * 0.8, 1.1, -FRAME_D * 0.2],
-        [DOOR_W / 2 + FRAME_T * 1.0, 1.7, FRAME_D * 0.35],
-        [DOOR_W / 2 + FRAME_T * 0.7, 2.3, 0],
-        [DOOR_W / 2 + FRAME_T * 0.9, 2.8, -FRAME_D * 0.1],
-        [DOOR_W / 2 + FRAME_T * 0.5, 3.2, FRAME_D * 0.25],
-        [0.1, DOOR_H + ARCH_R * 0.85, -FRAME_D * 0.1],
-    ];
-    ivyPositionsR.forEach(([x, y, z]) => {
-        addLeaf(x, y, z, 1 + Math.random() * 0.4, Math.random() > 0.4 ? ivyMat : ivyLightMat);
-    });
-
-    // Stems connecting clusters
-    addStem(-DOOR_W / 2 - FRAME_T * 0.9, 0.4, -DOOR_W / 2 - FRAME_T * 0.8, 0.9, -FRAME_D * 0.35, ivyMat);
-    addStem(-DOOR_W / 2 - FRAME_T * 0.8, 0.9, -DOOR_W / 2 - FRAME_T * 1.1, 1.5, 0, ivyMat);
-    addStem( DOOR_W / 2 + FRAME_T * 0.9, 0.5,  DOOR_W / 2 + FRAME_T * 0.8, 1.1, 0, ivyMat);
-    addStem( DOOR_W / 2 + FRAME_T * 0.8, 1.1,  DOOR_W / 2 + FRAME_T * 1.0, 1.7, 0, ivyMat);
+    // ── 4. Ivy / vegetation on stone arch (REMOVIDO A PEDIDO DO UTILIZADOR) ──────────────────────────────────
+    // As ervas foram removidas da porta.
 
     // ── 5. "Locked" indicator light (red glow when locked) ────────────────
     const lockLight = new THREE.PointLight(0xff2200, 0.8, 1.5);
@@ -333,10 +293,10 @@ function createExitDoor(posX, posY, posZ, rotationY) {
     // ── 7. Store leaf ref for unlock animation ─────────────────────────────
     doorGroup.userData.leaf = doorLeaf;
 
-    scene.add(doorGroup);
+    state.scene.add(doorGroup);
 
     // Expose to objects.js unlock logic
-    portaSaida = doorLeaf;
+    setPortaSaida(doorLeaf);
 
     return doorGroup;
 }

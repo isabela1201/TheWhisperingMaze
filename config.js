@@ -1,7 +1,7 @@
 // config.js
 // Game configuration settings and story descriptions
 
-const DADOS_HISTORIAS = [
+export const DADOS_HISTORIAS = [
     {
         titulo: "📜 Fragmento I — O Fio de Ariadne",
         texto: "\"O novelo de lã azul não brilha por acaso. Segue o rastro da coragem. Onde o Minotauro range os dentes, a salvação vira as costas à criatura e aponta para o nascer do sol...\"",
@@ -19,7 +19,7 @@ const DADOS_HISTORIAS = [
     }
 ];
 
-const CONFIG = {
+export const CONFIG = {
     MODEL_PATH: 'labirintov5.glb',
     PLAYER_HEIGHT: 1.6,
     PLAYER_SPEED: 0.12,

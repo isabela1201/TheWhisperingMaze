@@ -1,9 +1,14 @@
 // player.js
 // Handles player body construction, first-person torch, animations, camera mode toggling, and movement logic
 
+import * as THREE from 'three';
+import * as state from './state.js';
+import { S } from './state.js';
+import { CONFIG } from './config.js';
+
 let walkTimer = 0; // Local walk timer for animations
 
-function createPlayerBody() {
+export function createPlayerBody() {
     const skinMat = new THREE.MeshStandardMaterial({
         color: 0xdca889, // Greek Mediterranean bronze skin tone
         roughness: 0.8,
@@ -39,7 +44,7 @@ function createPlayerBody() {
         flatShading: true
     });
 
-    playerBody = new THREE.Group();
+    const playerBody = new THREE.Group();
 
     // --- JOINTS ---
     
@@ -341,11 +346,12 @@ function createPlayerBody() {
     playerBody.add(beardJaw);
 
     playerBody.visible = false;
-    scene.add(playerBody);
+    state.scene.add(playerBody);
+    S.setPlayerBody(playerBody);
 }
 
-function createFirstPersonTorch() {
-    fpTorch = new THREE.Group();
+export function createFirstPersonTorch() {
+    const fpTorch = new THREE.Group();
     
     // Materials
     const metalMat = new THREE.MeshStandardMaterial({
@@ -424,39 +430,40 @@ function createFirstPersonTorch() {
     fpTorch.position.set(0.25, -0.28, -0.45);
     fpTorch.rotation.set(0.15, -0.3, 0.05);
     
-    camera.add(fpTorch);
+    state.camera.add(fpTorch);
     fpTorch.visible = false; // Starts hidden
+    S.setFpTorch(fpTorch);
 }
 
-function toggleCamera() {
-    cameraMode = (cameraMode === 'FPS') ? 'TPS' : 'FPS';
+export function toggleCamera() {
+    S.setCameraMode(state.cameraMode === 'FPS' ? 'TPS' : 'FPS');
 
-    if (cameraMode === 'TPS') {
-        camera.fov = 65;
-        if (playerBody) playerBody.visible = true;
+    if (state.cameraMode === 'TPS') {
+        state.camera.fov = 65;
+        if (state.playerBody) state.playerBody.visible = true;
     } else {
-        camera.fov = 75;
-        if (playerBody) playerBody.visible = false;
-        camera.rotation.order = 'YXZ';
+        state.camera.fov = 75;
+        if (state.playerBody) state.playerBody.visible = false;
+        state.camera.rotation.order = 'YXZ';
     }
-    camera.updateProjectionMatrix();
+    state.camera.updateProjectionMatrix();
 }
 
-function updateMovement() {
-    if (!gameStarted || gameWon || paused) return;
+export function updateMovement() {
+    if (!state.gameStarted || state.gameWon || state.paused) return;
 
-    const speed = KEY.shift ? CONFIG.PLAYER_SPRINT : CONFIG.PLAYER_SPEED;
+    const speed = state.KEY.shift ? CONFIG.PLAYER_SPRINT : CONFIG.PLAYER_SPEED;
     const moveDir = new THREE.Vector3();
 
-    if (KEY.w) moveDir.z -= 1;
-    if (KEY.s) moveDir.z += 1;
-    if (KEY.a) moveDir.x -= 1;
-    if (KEY.d) moveDir.x += 1;
+    if (state.KEY.w) moveDir.z -= 1;
+    if (state.KEY.s) moveDir.z += 1;
+    if (state.KEY.a) moveDir.x -= 1;
+    if (state.KEY.d) moveDir.x += 1;
 
     // Flight Mode logic
-    if (flyMode) {
-        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        const right   = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    if (state.flyMode) {
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
+        const right   = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
         
         const finalDirection = new THREE.Vector3()
             .addScaledVector(forward, -moveDir.z)
@@ -466,25 +473,25 @@ function updateMovement() {
             finalDirection.normalize().multiplyScalar(speed);
         }
 
-        if (KEY.space) playerPos.y += speed;     // Go up
-        if (KEY.control) playerPos.y -= speed;   // Go down
+        if (state.KEY.space) state.playerPos.y += speed;     // Go up
+        if (state.KEY.control) state.playerPos.y -= speed;   // Go down
 
-        playerPos.x += finalDirection.x;
-        playerPos.z += finalDirection.z;
+        state.playerPos.x += finalDirection.x;
+        state.playerPos.z += finalDirection.z;
         return; 
     }
 
     if (moveDir.lengthSq() === 0) {
-        if (playerPos.y !== CONFIG.PLAYER_HEIGHT) {
-            playerPos.y = THREE.MathUtils.lerp(playerPos.y, CONFIG.PLAYER_HEIGHT, 0.1);
+        if (state.playerPos.y !== CONFIG.PLAYER_HEIGHT) {
+            state.playerPos.y = THREE.MathUtils.lerp(state.playerPos.y, CONFIG.PLAYER_HEIGHT, 0.1);
         }
         return;
     }
 
     moveDir.normalize();
 
-    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
+    const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
 
     const finalDirection = new THREE.Vector3()
         .addScaledVector(forward, -moveDir.z)
@@ -493,32 +500,72 @@ function updateMovement() {
         .multiplyScalar(speed);
 
     // Head bobbing
-    bobTimer += KEY.shift ? 0.22 : 0.14;
-    playerPos.y = CONFIG.PLAYER_HEIGHT + Math.sin(bobTimer) * 0.04;
+    S.setBobTimer(state.bobTimer + (state.KEY.shift ? 0.22 : 0.14));
+    state.playerPos.y = CONFIG.PLAYER_HEIGHT + Math.sin(state.bobTimer) * 0.04;
 
-    // Collision detection using raycasting
-    const origin = new THREE.Vector3(playerPos.x, 0.5, playerPos.z);
+    // Fast 2D sphere-sphere collision detection against instanced trees, rocks and bushes
+    let collidesX = false;
+    let collidesZ = false;
+    const playerRadius = 0.35; // Standard player collision thickness
 
-    const rayX = new THREE.Raycaster(origin, new THREE.Vector3(Math.sign(finalDirection.x), 0, 0), 0, CONFIG.COLLISION_MARGIN);
-    if (rayX.intersectObjects(mazeObjects, false).length === 0) playerPos.x += finalDirection.x;
+    const nextPosX = new THREE.Vector3(state.playerPos.x + finalDirection.x, state.playerPos.y, state.playerPos.z);
+    const nextPosZ = new THREE.Vector3(state.playerPos.x, state.playerPos.y, state.playerPos.z + finalDirection.z);
 
-    const rayZ = new THREE.Raycaster(origin, new THREE.Vector3(0, 0, Math.sign(finalDirection.z)), 0, CONFIG.COLLISION_MARGIN);
-    if (rayZ.intersectObjects(mazeObjects, false).length === 0) playerPos.z += finalDirection.z;
-}
+    for (let i = 0; i < state.instancedColliders.length; i++) {
+        const col = state.instancedColliders[i];
+        
+        // 2D distance calculation on X-Z plane
+        const dxX = nextPosX.x - col.position.x;
+        const dzX = nextPosX.z - col.position.z;
+        const distSqX = dxX * dxX + dzX * dzX;
+        const minDist = playerRadius + col.radius;
+        
+        if (distSqX < minDist * minDist) {
+            collidesX = true;
+        }
 
-function updatePlayerAnimation(delta) {
-    if (!playerBody || !playerBody.visible) return;
+        const dxZ = nextPosZ.x - col.position.x;
+        const dzZ = nextPosZ.z - col.position.z;
+        const distSqZ = dxZ * dxZ + dzZ * dzZ;
+        
+        if (distSqZ < minDist * minDist) {
+            collidesZ = true;
+        }
+        
+        if (collidesX && collidesZ) break;
+    }
 
-    if (playerBody.torchMesh) {
-        playerBody.torchMesh.visible = (typeof hasTorch !== 'undefined') ? hasTorch : false;
-        if (playerBody.torchMesh.flame) {
-            playerBody.torchMesh.flame.visible = (typeof torchOn !== 'undefined') ? torchOn : false;
+    // Raycast collision detection against static maze walls
+    const origin = new THREE.Vector3(state.playerPos.x, 0.5, state.playerPos.z);
+
+    if (!collidesX) {
+        const rayX = new THREE.Raycaster(origin, new THREE.Vector3(Math.sign(finalDirection.x), 0, 0), 0, CONFIG.COLLISION_MARGIN);
+        if (rayX.intersectObjects(state.mazeObjects, false).length === 0) {
+            state.playerPos.x += finalDirection.x;
         }
     }
 
-    const isFlying = typeof flyMode !== 'undefined' && flyMode;
-    const isMoving = typeof KEY !== 'undefined' && (KEY.w || KEY.s || KEY.a || KEY.d);
-    const isSprinting = typeof KEY !== 'undefined' && KEY.shift;
+    if (!collidesZ) {
+        const rayZ = new THREE.Raycaster(origin, new THREE.Vector3(0, 0, Math.sign(finalDirection.z)), 0, CONFIG.COLLISION_MARGIN);
+        if (rayZ.intersectObjects(state.mazeObjects, false).length === 0) {
+            state.playerPos.z += finalDirection.z;
+        }
+    }
+}
+
+export function updatePlayerAnimation(delta) {
+    if (!state.playerBody || !state.playerBody.visible) return;
+
+    if (state.playerBody.torchMesh) {
+        state.playerBody.torchMesh.visible = state.hasTorch;
+        if (state.playerBody.torchMesh.flame) {
+            state.playerBody.torchMesh.flame.visible = state.torchOn;
+        }
+    }
+
+    const isFlying = state.flyMode;
+    const isMoving = state.KEY.w || state.KEY.s || state.KEY.a || state.KEY.d;
+    const isSprinting = state.KEY.shift;
 
     const swingSpeed = isSprinting ? 12 : 8.5;
     const maxLegSwing = isSprinting ? 0.65 : 0.42;
@@ -526,55 +573,55 @@ function updatePlayerAnimation(delta) {
 
     if (isFlying) {
         // Floating animation
-        const floatTime = clock.getElapsedTime() * 2.0;
+        const floatTime = state.clock.getElapsedTime() * 2.0;
         
         const targetLegRot = 0.15 + Math.sin(floatTime) * 0.05;
-        playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftLegJoint.rotation.x, targetLegRot, 0.1);
-        playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightLegJoint.rotation.x, targetLegRot - 0.05, 0.1);
+        state.playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftLegJoint.rotation.x, targetLegRot, 0.1);
+        state.playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightLegJoint.rotation.x, targetLegRot - 0.05, 0.1);
 
         const targetArmRotX = 0.2 + Math.cos(floatTime) * 0.08;
-        const targetArmRotZLeft = 0.3 + Math.sin(floatTime) * 0.05;
-        const targetArmRotZRight = -0.3 - Math.sin(floatTime) * 0.05;
+        const targetArmRotZLeft = -0.35 + Math.sin(floatTime) * 0.05;
+        const targetArmRotZRight = 0.35 - Math.sin(floatTime) * 0.05;
 
-        playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.x, targetArmRotX, 0.1);
-        playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.x, targetArmRotX, 0.1);
-        playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, targetArmRotZLeft, 0.1);
-        playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, targetArmRotZRight, 0.1);
+        state.playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.x, targetArmRotX, 0.1);
+        state.playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.x, targetArmRotX, 0.1);
+        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, targetArmRotZLeft, 0.1);
+        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, targetArmRotZRight, 0.1);
 
-        playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftElbowJoint.rotation.x, 0.25, 0.1);
-        playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightElbowJoint.rotation.x, 0.25, 0.1);
+        state.playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftElbowJoint.rotation.x, 0.25, 0.1);
+        state.playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightElbowJoint.rotation.x, 0.25, 0.1);
 
-        playerBody.torso.rotation.y = THREE.MathUtils.lerp(playerBody.torso.rotation.y, 0, 0.1);
+        state.playerBody.torso.rotation.y = THREE.MathUtils.lerp(state.playerBody.torso.rotation.y, 0, 0.1);
     } else if (isMoving) {
         walkTimer += delta * swingSpeed;
         
-        playerBody.leftLegJoint.rotation.x = Math.sin(walkTimer) * maxLegSwing;
-        playerBody.rightLegJoint.rotation.x = -Math.sin(walkTimer) * maxLegSwing;
+        state.playerBody.leftLegJoint.rotation.x = Math.sin(walkTimer) * maxLegSwing;
+        state.playerBody.rightLegJoint.rotation.x = -Math.sin(walkTimer) * maxLegSwing;
 
-        playerBody.rightArmJoint.rotation.x = 0.15 + Math.sin(walkTimer) * maxArmSwing;
-        playerBody.leftArmJoint.rotation.x = 0.15 - Math.sin(walkTimer) * maxArmSwing;
+        state.playerBody.rightArmJoint.rotation.x = 0.15 + Math.sin(walkTimer) * maxArmSwing;
+        state.playerBody.leftArmJoint.rotation.x = 0.15 - Math.sin(walkTimer) * maxArmSwing;
 
-        playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, -0.25, 0.1);
-        playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, 0.25, 0.1);
+        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, 0.35, 0.1);
+        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, -0.35, 0.1);
 
-        playerBody.rightElbowJoint.rotation.x = 0.1 + (Math.sin(walkTimer + Math.PI/2) * 0.15 + 0.15);
-        playerBody.leftElbowJoint.rotation.x = 0.1 + (Math.sin(-walkTimer + Math.PI/2) * 0.15 + 0.15);
+        state.playerBody.rightElbowJoint.rotation.x = 0.1 + (Math.sin(walkTimer + Math.PI/2) * 0.15 + 0.15);
+        state.playerBody.leftElbowJoint.rotation.x = 0.1 + (Math.sin(-walkTimer + Math.PI/2) * 0.15 + 0.15);
 
-        playerBody.torso.rotation.y = Math.sin(walkTimer) * 0.06;
+        state.playerBody.torso.rotation.y = Math.sin(walkTimer) * 0.06;
     } else {
         const lerpFactor = 0.18;
-        playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftLegJoint.rotation.x, 0, lerpFactor);
-        playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightLegJoint.rotation.x, 0, lerpFactor);
+        state.playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftLegJoint.rotation.x, 0, lerpFactor);
+        state.playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightLegJoint.rotation.x, 0, lerpFactor);
         
-        playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.x, 0.15, lerpFactor);
-        playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.x, 0.15, lerpFactor);
+        state.playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.x, 0.15, lerpFactor);
+        state.playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.x, 0.15, lerpFactor);
 
-        playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.rightArmJoint.rotation.z, -0.25, lerpFactor);
-        playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(playerBody.leftArmJoint.rotation.z, 0.25, lerpFactor);
+        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, 0.35, lerpFactor);
+        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, -0.35, lerpFactor);
 
-        playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.rightElbowJoint.rotation.x, 0.1, lerpFactor);
-        playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(playerBody.leftElbowJoint.rotation.x, 0.1, lerpFactor);
+        state.playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightElbowJoint.rotation.x, 0.1, lerpFactor);
+        state.playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftElbowJoint.rotation.x, 0.1, lerpFactor);
 
-        playerBody.torso.rotation.y = THREE.MathUtils.lerp(playerBody.torso.rotation.y, 0, lerpFactor);
+        state.playerBody.torso.rotation.y = THREE.MathUtils.lerp(state.playerBody.torso.rotation.y, 0, lerpFactor);
     }
 }

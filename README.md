@@ -110,6 +110,9 @@ A qualidade visual e o realismo dos materiais baseiam-se em recursos de código 
 * **Polyhaven:** Todas as texturas de alta definição (PBR - Physically Based Rendering), incluindo mapas de cor, normais e rugosidade foram obtidos a partir da plataforma [Polyhaven](https://polyhaven.com/). Estes recursos foram fundamentais para a implementação do modelo de iluminação de Phong e Shading avançado.
 * **Procedural Geometry: Low Poly Clouds | by Josh Marinacci | Medium:** O código das nuvens foi retirado do artigo da MEDIUM "Procedural Geometry: Low Poly Clouds" (https://medium.com/@joshmarinacci/procedural-geometry-low-poly-clouds-b86a0e66bcad).
 
+cogumelos
+https://hackernoon.com/how-to-draw-generative-nft-mushrooms-with-threejs
+
 ### Apoio de Inteligência Artificial
 No âmbito da concepção técnica e resolução de problemas de programação, foram utilizadas as seguintes ferramentas de IA generativa:
 * **Google Gemini:** Utilizado como colaborador principal na estruturação do código Three.js, otimização da lógica do ciclo dia/noite e na integração técnica entre a modelação realizada no Blender e o pipeline de visualização 3D.
