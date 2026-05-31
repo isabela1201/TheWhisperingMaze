@@ -39,11 +39,11 @@
     <div id="papiro-janela">
         <button id="papiro-btn-fechar-x" onclick="window._game.fecharPapiro()">&times;</button>
         
-        <h2 id="papiro-titulo">Fragmento Encontrado</h2>
-        <div id="papiro-texto">O texto do enigma vai aparecer aqui...</div>
+        <h2 id="papiro-titulo">Ser luminoso...</h2>
+        <div id="papiro-texto">As memórias vao aparecer aqui...</div>
         
         <div class="papiro-rodape">
-            <button id="papiro-btn-acao" onclick="window._game.avancarPapiro()">Compreendi o Enigma</button>
+            <button id="papiro-btn-acao" onclick="window._game.avancarPapiro()">Avançar</button>
         </div>
     </div>
 </div>
@@ -61,41 +61,14 @@
     </div>
   </div>
 </div>
-<!-- Teleport Overlay (God Function) -->
-<div id="teleport-overlay" style="display: none;">
-  <div id="teleport-janela">
-    <h2 id="teleport-titulo">⚡ Teleporte Divino ⚡</h2>
-    <p style="font-size: 0.9rem; margin-bottom: 15px; color: #ccc;">Insira as coordenadas para onde deseja viajar:</p>
-    <div class="teleport-inputs">
-      <div class="teleport-field">
-        <label for="teleport-x">X</label>
-        <input type="number" id="teleport-x" step="0.1" onkeydown="if(event.key === 'Enter') window._game.confirmarTeleporte(); else if(event.key === 'Escape') window._game.fecharTeleporte();" />
-      </div>
-      <div class="teleport-field">
-        <label for="teleport-y">Y</label>
-        <input type="number" id="teleport-y" step="0.1" onkeydown="if(event.key === 'Enter') window._game.confirmarTeleporte(); else if(event.key === 'Escape') window._game.fecharTeleporte();" />
-      </div>
-      <div class="teleport-field">
-        <label for="teleport-z">Z</label>
-        <input type="number" id="teleport-z" step="0.1" onkeydown="if(event.key === 'Enter') window._game.confirmarTeleporte(); else if(event.key === 'Escape') window._game.fecharTeleporte();" />
-      </div>
-    </div>
-    <div class="teleport-botoes">
-      <button id="teleport-btn-confirmar" class="teleport-btn teleport-btn-confirmar" onclick="window._game.confirmarTeleporte()">Viajar</button>
-      <button id="teleport-btn-cancelar" class="teleport-btn teleport-btn-cancelar" onclick="window._game.fecharTeleporte()">Cancelar</button>
-    </div>
-  </div>
-</div>
 <div id="game-notification" style="display: none;"></div>
 <div id="hud">WASD — mover &nbsp;·&nbsp; Rato — olhar &nbsp;·&nbsp; Shift — correr &nbsp;·&nbsp; C — câmara &nbsp;·&nbsp; F — tocha &nbsp;·&nbsp; ESC-pausa</div>
-<div id="debug">W:▯ A:▯ S:▯ D:▯ | Lock:✗</div>
 
 <!-- Start overlay -->
 <div id="overlay">
   <div class="card">
     <span class="card-emoji">🍄</span>
-    <div class="tag">versão 2.0
-    </div>
+    
     <h1>The<br>Whispering Maze</h1>
     <p>Explora o labirinto e descobre os segredos escondidos!</p>
     <div class="divider">controlos</div>
@@ -114,24 +87,24 @@
 <!-- Win screen / Credits -->
 <div id="win-screen" style="display:none;">
   <div class="card win-card">
-    <span class="card-emoji">🌿</span>
+    <span class="card-emoji">🧶</span>
     <h2>Escapaste do Labirinto!</h2>
-    <p>O jardim sussurrante está agora em paz.<br>Obrigado por jogar.</p>
+    <p>O jardim sussurrante revelou a verdadeira história!<br>Obrigado por jogar.</p>
     <div id="win-time"></div>
 
     <div class="credits-box">
       <div class="credits-title">✦ Créditos ✦</div>
       <div class="credits-section">
-        <div class="credits-role">Conceito & Design</div>
-        <div class="credits-name">Isabela Ferreira</div>
+        <div class="credits-role">Conceito</div>
+        <div class="credits-name">Isabela Pereira</div>
       </div>
       <div class="credits-section">
         <div class="credits-role">Programação 3D & Shaders</div>
-        <div class="credits-name">Isabela Ferreira</div>
+        <div class="credits-name">Isabela Pereira</div>
       </div>
       <div class="credits-section">
-        <div class="credits-role">Arte & Modelos</div>
-        <div class="credits-name">Sketchfab Community (CC Licenses)</div>
+        <div class="credits-role">Modelos & Texturas</div>
+        <div class="credits-name">Sketchfab Community & PolyHaven</div>
       </div>
       <div class="credits-section">
         <div class="credits-role">Narrativa</div>
@@ -142,7 +115,7 @@
         <div class="credits-name">Three.js r184</div>
       </div>
       <div class="credits-divider">❦</div>
-      <div class="credits-quote">"O labirinto não era uma prisão — era um jardim à espera de ser libertado."</div>
+      <div class="credits-quote">"Dedico este jogo à minha irmã, Matilde, que me ajudou nas decisões estéticas!"</div>
     </div>
 
     <button id="restart-btn">🔄 Jogar novamente</button>

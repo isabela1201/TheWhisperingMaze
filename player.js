@@ -60,9 +60,12 @@ export function createPlayerBody() {
     playerBody.rightLegJoint = rightLegJoint;
 
     // Shoulder Joints
+    // Shoulder Joints
     const leftArmJoint = new THREE.Group();
-    leftArmJoint.position.set(-0.24, 1.48, 0);
-    leftArmJoint.rotation.set(0.15, 0, 0.25); // Rest position
+    // Altera o X de -0.32 para -0.22
+    leftArmJoint.position.set(-0.22, 1.48, 0); 
+    // Ajusta a rotação inicial para ficarem mais caídos
+    leftArmJoint.rotation.set(0.15, 0, -0.05); 
     playerBody.add(leftArmJoint);
     playerBody.leftArmJoint = leftArmJoint;
 
@@ -71,8 +74,10 @@ export function createPlayerBody() {
     leftArmJoint.add(leftShoulder);
 
     const rightArmJoint = new THREE.Group();
-    rightArmJoint.position.set(0.24, 1.48, 0);
-    rightArmJoint.rotation.set(0.15, 0, -0.25); // Rest position
+    // Altera o X de 0.32 para 0.22
+    rightArmJoint.position.set(0.22, 1.48, 0); 
+    // Ajusta a rotação inicial para ficarem mais caídos
+    rightArmJoint.rotation.set(0.15, 0, 0.05); 
     playerBody.add(rightArmJoint);
     playerBody.rightArmJoint = rightArmJoint;
 
@@ -460,27 +465,6 @@ export function updateMovement() {
     if (state.KEY.a) moveDir.x -= 1;
     if (state.KEY.d) moveDir.x += 1;
 
-    // Flight Mode logic
-    if (state.flyMode) {
-        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
-        const right   = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw);
-        
-        const finalDirection = new THREE.Vector3()
-            .addScaledVector(forward, -moveDir.z)
-            .addScaledVector(right, moveDir.x);
-            
-        if (finalDirection.lengthSq() > 0) {
-            finalDirection.normalize().multiplyScalar(speed);
-        }
-
-        if (state.KEY.space) state.playerPos.y += speed;     // Go up
-        if (state.KEY.control) state.playerPos.y -= speed;   // Go down
-
-        state.playerPos.x += finalDirection.x;
-        state.playerPos.z += finalDirection.z;
-        return; 
-    }
-
     if (moveDir.lengthSq() === 0) {
         if (state.playerPos.y !== CONFIG.PLAYER_HEIGHT) {
             state.playerPos.y = THREE.MathUtils.lerp(state.playerPos.y, CONFIG.PLAYER_HEIGHT, 0.1);
@@ -563,7 +547,6 @@ export function updatePlayerAnimation(delta) {
         }
     }
 
-    const isFlying = state.flyMode;
     const isMoving = state.KEY.w || state.KEY.s || state.KEY.a || state.KEY.d;
     const isSprinting = state.KEY.shift;
 
@@ -571,29 +554,9 @@ export function updatePlayerAnimation(delta) {
     const maxLegSwing = isSprinting ? 0.65 : 0.42;
     const maxArmSwing = isSprinting ? 0.55 : 0.35;
 
-    if (isFlying) {
-        // Floating animation
-        const floatTime = state.clock.getElapsedTime() * 2.0;
-        
-        const targetLegRot = 0.15 + Math.sin(floatTime) * 0.05;
-        state.playerBody.leftLegJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftLegJoint.rotation.x, targetLegRot, 0.1);
-        state.playerBody.rightLegJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightLegJoint.rotation.x, targetLegRot - 0.05, 0.1);
-
-        const targetArmRotX = 0.2 + Math.cos(floatTime) * 0.08;
-        const targetArmRotZLeft = -0.35 + Math.sin(floatTime) * 0.05;
-        const targetArmRotZRight = 0.35 - Math.sin(floatTime) * 0.05;
-
-        state.playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.x, targetArmRotX, 0.1);
-        state.playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.x, targetArmRotX, 0.1);
-        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, targetArmRotZLeft, 0.1);
-        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, targetArmRotZRight, 0.1);
-
-        state.playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftElbowJoint.rotation.x, 0.25, 0.1);
-        state.playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightElbowJoint.rotation.x, 0.25, 0.1);
-
-        state.playerBody.torso.rotation.y = THREE.MathUtils.lerp(state.playerBody.torso.rotation.y, 0, 0.1);
-    } else if (isMoving) {
+    if (isMoving) {
         walkTimer += delta * swingSpeed;
+        const lerpFactor = 0.18; 
         
         state.playerBody.leftLegJoint.rotation.x = Math.sin(walkTimer) * maxLegSwing;
         state.playerBody.rightLegJoint.rotation.x = -Math.sin(walkTimer) * maxLegSwing;
@@ -601,8 +564,9 @@ export function updatePlayerAnimation(delta) {
         state.playerBody.rightArmJoint.rotation.x = 0.15 + Math.sin(walkTimer) * maxArmSwing;
         state.playerBody.leftArmJoint.rotation.x = 0.15 - Math.sin(walkTimer) * maxArmSwing;
 
-        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, 0.35, 0.1);
-        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, -0.35, 0.1);
+        // Manter os braços fechados (0.05 em vez de 0.1) enquanto anda
+        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, 0.05, lerpFactor);
+        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, -0.05, lerpFactor);
 
         state.playerBody.rightElbowJoint.rotation.x = 0.1 + (Math.sin(walkTimer + Math.PI/2) * 0.15 + 0.15);
         state.playerBody.leftElbowJoint.rotation.x = 0.1 + (Math.sin(-walkTimer + Math.PI/2) * 0.15 + 0.15);
@@ -616,12 +580,14 @@ export function updatePlayerAnimation(delta) {
         state.playerBody.rightArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.x, 0.15, lerpFactor);
         state.playerBody.leftArmJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.x, 0.15, lerpFactor);
 
-        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, 0.35, lerpFactor);
-        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, -0.35, lerpFactor);
+        // AQUI: Estava 0.35 no teu código, alterado para 0.05 para manter fechado quando parado
+        state.playerBody.rightArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.rightArmJoint.rotation.z, 0.05, lerpFactor);
+        state.playerBody.leftArmJoint.rotation.z = THREE.MathUtils.lerp(state.playerBody.leftArmJoint.rotation.z, -0.05, lerpFactor);
 
         state.playerBody.rightElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.rightElbowJoint.rotation.x, 0.1, lerpFactor);
         state.playerBody.leftElbowJoint.rotation.x = THREE.MathUtils.lerp(state.playerBody.leftElbowJoint.rotation.x, 0.1, lerpFactor);
 
         state.playerBody.torso.rotation.y = THREE.MathUtils.lerp(state.playerBody.torso.rotation.y, 0, lerpFactor);
     }
+
 }

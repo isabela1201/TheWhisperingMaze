@@ -4,9 +4,10 @@
 import * as THREE from 'three';
 import * as state from './state.js';
 import { S } from './state.js';
+import { CONFIG } from './config.js';
 
-const WHISPER_COUNT = 200; // Highly optimized (down from 200) for potato GPUs
-const WHISPER_SPREAD = 60;
+const WHISPER_COUNT  = CONFIG.WHISPER_COUNT;
+const WHISPER_SPREAD = CONFIG.WHISPER_SPREAD;
 
 export function createWhispers() {
     const geometry = new THREE.BufferGeometry();

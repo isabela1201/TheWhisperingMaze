@@ -23,8 +23,7 @@ import { CONFIG } from './config.js';
 
 import {
     abrirPapiroHistoria, fecharPapiro, reverHistoria,
-    updateDebug, showNotification,
-    abrirTeleporte, fecharTeleporte, confirmarTeleporte,
+    showNotification,
     avancarPapiro
 } from './ui.js';
 
@@ -35,15 +34,13 @@ import {
     setupLighting, setupDayNightCycle, updateAnimations,
     createWallTorches, espalharErvaGLTF, espalharFlorestaGLTF, espalharCogumelosOptimizado
 } from './environment.js';
-import { popularCena, verificarColecionaveisEspeciais, verificarProximidade, atualizarFonte, fecharPopupCuriosidade } from './objects.js';
+import { popularCena, verificarColecionaveisEspeciais, verificarProximidade, fecharPopupCuriosidade, abrirPopupCuriosidade } from './objects.js';
 import { createExitDoor } from './door.js';
 
 // ── Expose UI functions to global scope for HTML inline onclick handlers ──────
 window._game = {
     fecharPapiro,
     fecharPopupCuriosidade,
-    confirmarTeleporte,
-    fecharTeleporte,
     avancarPapiro,
 };
 
@@ -131,6 +128,8 @@ function init() {
     renderer.shadowMap.enabled = true;
     document.getElementById('canvas-container').appendChild(renderer.domElement);
     S.setRenderer(renderer);
+
+    initAudio();
 
     // Use THREE.Timer to fix the deprecated THREE.Clock warning in r184
     let clockOrTimer;
@@ -242,20 +241,6 @@ function setupInput() {
             }
         }
 
-        if (e.code === 'KeyV' && state.gameStarted && !state.gameWon) {
-            if (e.shiftKey) {
-                abrirTeleporte();
-            } else {
-                S.setFlyMode(!state.flyMode);
-                console.log(`Modo de voo: ${state.flyMode ? 'ATIVADO' : 'DESATIVADO'}`);
-                showNotification(state.flyMode ? "Modo de voo ATIVADO. Pressiona Shift+V para teletransportar." : "Modo de voo DESATIVADO.");
-            }
-        }
-
-        if (e.code === 'KeyT' && state.gameStarted && !state.gameWon && state.flyMode) {
-            abrirTeleporte();
-        }
-
         if (e.code === 'Escape' && state.gameStarted && !state.gameWon) {
             if (state.isLocked) document.exitPointerLock();
             else state.renderer.domElement.requestPointerLock();
@@ -296,13 +281,20 @@ function setupInput() {
         S.setIsLocked(document.pointerLockElement === state.renderer.domElement);
         if (state.gameStarted && !state.gameWon && !state.isLocked) S.setPaused(true);
         if (state.isLocked) S.setPaused(false);
-        updateDebug();
     });
 
     document.getElementById('start-btn').addEventListener('click', () => {
         document.getElementById('overlay').style.display = 'none';
         state.renderer.domElement.requestPointerLock();
         S.setGameStarted(true);
+        
+        // Ativar o áudio do browser e tocar o ambiente
+        if (state.audioListener && state.audioListener.context.state === 'suspended') {
+            state.audioListener.context.resume();
+        }
+        if (state.sounds.ambient && !state.sounds.ambient.isPlaying) {
+            state.sounds.ambient.play();
+        }
     });
 
     document.getElementById('restart-btn').addEventListener('click', () => location.reload());
@@ -335,6 +327,9 @@ function setupInput() {
                     const dist = state.playerPos.distanceTo(obj.position);
                     if (dist < 3.5) {
                         if (!state.hasTorch) {
+                            // Guarda se é a primeira vez antes de alterar o estado global
+                            const primeiraVez = !state.hasAcquiredTorch;
+
                             obj.userData.active = false;
                             obj.userData.flame.visible = false;
                             if (obj.spotLight) {
@@ -348,7 +343,12 @@ function setupInput() {
                             S.setTorchOn(true);
                             S.setTorchTimeRemaining(60.0);
 
-                            showNotification("Roubaste uma tocha da parede! Agora tens luz 🔥");
+                            // Se for a primeira vez, abre o pop-up com a Lore. Caso contrário, mostra apenas a notificação normal.
+                            if (primeiraVez) {
+                                abrirPopupCuriosidade({ key: 'tocha' });
+                            } else {
+                                showNotification("Roubaste uma tocha da parede! Agora tens luz 🔥");
+                            }
                         } else {
                             S.setTorchOn(true);
                             S.setTorchTimeRemaining(60.0);
@@ -484,6 +484,32 @@ function loadMazeModel() {
     );
 }
 
+function initAudio() {
+    // O AudioListener "ouve" os sons e fica colado à câmara
+    const listener = new THREE.AudioListener();
+    state.camera.add(listener);
+    S.setAudioListener(listener);
+
+    const audioLoader = new THREE.AudioLoader();
+
+    // 1. Som Ambiente (Loop infinito)
+    const ambientSound = new THREE.Audio(listener);
+    audioLoader.load('assets/sounds/ambiente.mp3', (buffer) => {
+        ambientSound.setBuffer(buffer);
+        ambientSound.setLoop(true);
+        ambientSound.setVolume(0.3); // Volume mais baixo para não chatear
+    });
+    state.sounds.ambient = ambientSound;
+
+    // 2. Som de Colecionável
+    const collectSound = new THREE.Audio(listener);
+    audioLoader.load('assets/sounds/collect.mp3', (buffer) => {
+        collectSound.setBuffer(buffer);
+        collectSound.setVolume(0.8);
+    });
+    state.sounds.collect = collectSound;
+}
+
 function animate(timestamp) {
     requestAnimationFrame(animate);
 
@@ -531,6 +557,13 @@ function animate(timestamp) {
                 if (distancia < 1.8) {
                     col.coletado = true;
                     col.ring.visible = false;
+                    
+                    // --- TOCA O SOM DE CAPTURA ---
+                    if (state.sounds.collect) {
+                        if (state.sounds.collect.isPlaying) state.sounds.collect.stop();
+                        state.sounds.collect.play();
+                    }
+                    
                     abrirPapiroHistoria(col.id);
                 }
             }
@@ -547,8 +580,6 @@ function animate(timestamp) {
 
         // 4. Update particle animations, walk cycle, day-night cycle
         updateAnimations();
-        // Advance AnimationMixer for fonte.glb water animation
-        atualizarFonte(delta);
 
         // 5. Camera update
         if (state.cameraMode === 'FPS') {
@@ -582,9 +613,15 @@ function animate(timestamp) {
         }
 
         // 6. Win check
-        if (state.playerPos.distanceTo(state.exitPos) < CONFIG.EXIT_RADIUS) {
+        // Calculamos a distância apenas nos eixos X e Z (2D) para ignorar a altura (Y) do jogador
+        const dx = state.playerPos.x - state.exitPos.x;
+        const dz = state.playerPos.z - state.exitPos.z;
+        const distanciaSaida = Math.sqrt(dx * dx + dz * dz);
+
+        if (distanciaSaida < CONFIG.EXIT_RADIUS) {
             S.setGameWon(true);
             document.exitPointerLock();
+            
             // Display elapsed time on win screen
             const totalSecs = Math.floor(state.clock.getElapsedTime());
             const mins = Math.floor(totalSecs / 60);
@@ -765,7 +802,6 @@ function animate(timestamp) {
             }
         }
 
-        updateDebug();
     }
     state.renderer.render(state.scene, state.camera);
 }

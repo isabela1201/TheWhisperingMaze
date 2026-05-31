@@ -210,26 +210,37 @@ body::after {
 
 /* ── Win Card (wider to fit credits) ── */
 .win-card {
-  max-width: 560px !important;
+  max-width: 520px !important;
+  padding: 30px 40px 30px !important; /* Reduz o padding vertical do cartão */
 }
+
+.win-card h2 {
+  font-size: clamp(1.8rem, 5vw, 2.4rem); /* Ligeiramente mais pequeno */
+}
+
+.win-card p {
+  margin-bottom: 12px; /* Menos espaço debaixo do texto */
+}
+
+
 
 /* ── Credits Box ── */
 .credits-box {
   background: linear-gradient(135deg, rgba(230,220,255,0.4), rgba(220,240,255,0.4));
   border: 1.5px solid rgba(160,140,210,0.3);
-  border-radius: 16px;
-  padding: 18px 24px 14px;
-  margin: 14px 0 22px;
+  border-radius: 12px;
+  padding: 12px 20px 10px; /* Reduzido o padding interior */
+  margin: 10px 0 16px; /* Reduzido o espaço à volta da caixa */
   text-align: left;
 }
 
 .credits-title {
   font-family: 'Fredoka One', cursive;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: var(--ink);
   text-align: center;
   letter-spacing: .15em;
-  margin-bottom: 14px;
+  margin-bottom: 8px; /* Menos margem */
   opacity: 0.7;
 }
 
@@ -238,13 +249,13 @@ body::after {
   justify-content: space-between;
   align-items: baseline;
   gap: 10px;
-  padding: 5px 0;
+  padding: 3px 0; /* Aproxima as linhas dos créditos */
   border-bottom: 1px dashed rgba(160,140,210,0.25);
 }
 .credits-section:last-of-type { border-bottom: none; }
 
 .credits-role {
-  font-size: .75rem;
+  font-size: .7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .09em;
@@ -253,7 +264,7 @@ body::after {
 }
 
 .credits-name {
-  font-size: .85rem;
+  font-size: .8rem;
   font-weight: 600;
   color: var(--ink);
   text-align: right;
@@ -261,18 +272,18 @@ body::after {
 
 .credits-divider {
   text-align: center;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--blush);
-  margin: 10px 0 8px;
+  margin: 6px 0 4px;
   opacity: 0.7;
 }
 
 .credits-quote {
-  font-size: .78rem;
+  font-size: .75rem;
   font-style: italic;
   color: var(--soft);
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.4;
   opacity: 0.85;
 }
 
@@ -378,13 +389,13 @@ button:active {
 /* ── Win screen specifics ── */
 #win-time {
   font-family: 'Fredoka One', cursive;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   color: var(--ink);
   background: var(--mint);
   display: inline-block;
-  padding: 6px 22px;
+  padding: 4px 18px; /* Tempo mais compacto */
   border-radius: 99px;
-  margin-bottom: 22px;
+  margin-bottom: 12px;
 }
 
 /* ── Floating sparkles on win ── */

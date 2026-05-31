@@ -31,7 +31,6 @@ export let KEY = { w: false, a: false, s: false, d: false, shift: false, space: 
 export let yaw    = 0;
 export let pitch  = 0;
 export let isLocked  = false;
-export let flyMode   = false;
 export let bobTimer  = 0;
 
 // ── Torch & Lights ───────────────────────────────────────────────────────────
@@ -91,7 +90,6 @@ export const S = {
     setYaw(v)            { yaw = v; },
     setPitch(v)          { pitch = v; },
     setIsLocked(v)       { isLocked = v; },
-    setFlyMode(v)        { flyMode = v; },
     setBobTimer(v)       { bobTimer = v; },
     setTorch(v)          { torch = v; },
     setTorchOn(v)        { torchOn = v; },
@@ -117,9 +115,16 @@ export const S = {
     setPapiroWhisp(v)    { papiroWhisp = v; },
     setInstructionsTriggered(v){ instructionsTriggered = v; },
     setInstancedColliders(v){ instancedColliders = v; },
-
+    setAudioListener(v)  { audioListener = v; },
     // KEY mutations
     setKey(k, v)         { KEY[k] = v; },
+};
+
+// ── Audio ────────────────────────────────────────────────────────────────────
+export let audioListener = null;
+export let sounds = {
+    ambient: null,
+    collect: null
 };
 
 // ── initState: called once at the start of init() ────────────────────────────

@@ -75,15 +75,17 @@ export function setupDayNightCycle() {
             fogNear: 18, fogFar: 78,
             exposure: 0.82, mazeEmissive: 0.07, whisperMult: 1.3,
         },
-        { // 3 — Night (Noite — índigo suave como tinta diluída, estrelas distantes)
-            sunColor: new THREE.Color(0xd0d8f0), sunIntensity: 0.45, // luar suave azul-prata
+        { // 3 — Night (Noite profunda e escura)
+            sunColor: new THREE.Color(0x88aaff), sunIntensity: 0.12, // Luar prata muito subtil
             sunPos: new THREE.Vector3(5, 45, -30),
-            ambientColor: new THREE.Color(0x8890b8), ambientIntensity: 0.22, // índigo esbatido
-            hemiSky: new THREE.Color(0x7080a8),    // azul-índigo profundo mas não negro
-            hemiGround: new THREE.Color(0x303850),  // roxo escuro no chão
-            fogColor: new THREE.Color(0x9090c0),    // névoa índigo/azul-cinza
-            fogNear: 16, fogFar: 58,
-            exposure: 0.68, mazeEmissive: 0.30, whisperMult: 2.2,
+            ambientColor: new THREE.Color(0x101525), ambientIntensity: 0.10, // Escuridão quase total
+            hemiSky: new THREE.Color(0x080b14),    // Azul noturno quase preto no céu
+            hemiGround: new THREE.Color(0x030408),  // Chão negro
+            fogColor: new THREE.Color(0x05070c),    // Névoa densa e escura
+            fogNear: 12, fogFar: 45,                // Névoa ligeiramente mais próxima
+            exposure: 0.55, 
+            mazeEmissive: 0.0, // <-- O SEGREDO: 0.0 desliga a cor estranha das paredes!
+            whisperMult: 2.2,
         },
     ]);
 }
