@@ -653,7 +653,29 @@ function animate(timestamp) {
             }
         }
 
-        // Sunset check
+        // ── Torch HUD bar update ────────────────────────────────────────────
+        {
+            const torchHud = document.getElementById('torch-hud');
+            const torchBar = document.getElementById('torch-bar');
+            if (torchHud && torchBar) {
+                if (state.hasTorch) {
+                    torchHud.classList.add('active');
+                    const pct = Math.max(0, (state.torchTimeRemaining / 60.0) * 100);
+                    torchBar.style.width = pct + '%';
+                    if (pct <= 20) {
+                        torchHud.classList.add('low');
+                    } else {
+                        torchHud.classList.remove('low');
+                    }
+                } else {
+                    torchHud.classList.remove('active');
+                    torchHud.classList.remove('low');
+                    torchBar.style.width = '100%';
+                }
+            }
+        }
+
+
         if (state.currentPhase === 'Noite' && !state.hasTorch && !state.nightNotificationShown) {
             S.setNightNotificationShown(true);
             showNotification("Está a ficar escuro! Aproxima-te de uma tocha na parede e clica nela para a roubares. 🧭");

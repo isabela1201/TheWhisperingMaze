@@ -66,6 +66,14 @@ export function adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala = 1, 
         state.scene.add(model);
         state.mazeObjects.push(model);
 
+        // ── Sphere collider derived from the XZ bounding box diagonal ─────
+        const halfDiag = Math.sqrt(size.x * size.x + size.z * size.z) * 0.5;
+        const colliderRadius = Math.max(halfDiag, 0.3); // minimum 0.3 units
+        state.instancedColliders.push({
+            position: new THREE.Vector3(posX, 0, posZ),
+            radius: colliderRadius
+        });
+
         // Cyan glow ring for collectibles
         if (isColecionavel) {
             const ringGeo = new THREE.RingGeometry(size.x * 0.6, size.x * 0.8, 32);
@@ -123,6 +131,14 @@ export function adicionarNaoColecionavel(path, posX, posY, posZ, grausX, grausY,
 
         state.scene.add(model);
         state.mazeObjects.push(model);
+
+        // ── Sphere collider derived from the XZ bounding box diagonal ─────
+        const halfDiag = Math.sqrt(size.x * size.x + size.z * size.z) * 0.5;
+        const colliderRadius = Math.max(halfDiag, 0.3);
+        state.instancedColliders.push({
+            position: new THREE.Vector3(posX, 0, posZ),
+            radius: colliderRadius
+        });
 
         objetosProximidade.push({
             key: popupKey,
