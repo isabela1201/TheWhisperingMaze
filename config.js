@@ -24,7 +24,7 @@ export const CONFIG = {
 // Indexed 0=novelo, 1=espada, 2=estatua_girl
 export const DADOS_HISTORIAS = [
     {
-        titulo: "🧶 Fragmento II — O Fio da Razão",
+        titulo: "🧶 Fragmento III — O Fio da Razão",
         texto: "\"Chamaram-lhe 'o fio de Teseu', mas a lã azul foi fiada pelas minhas mãos. O labirinto não foi vencido por músculos, mas pela minha mente. Entreguei-lhe a salvação enrolada num novelo, e ele levou o crédito do meu intelecto. Aprende com o passado: a verdadeira chave nunca é a força bruta, mas o caminho que desenhas na escuridão.\"",
         emoji: "🧶"
     },
@@ -34,7 +34,7 @@ export const DADOS_HISTORIAS = [
         emoji: "⚔️"
     },
     {
-        titulo: "🏛️ Fragmento III — A Estátua Quebrada",
+        titulo: "🏛️ Fragmento II — A Estátua Quebrada",
         texto: "\"A história esculpiu-me em mármore: a donzela ingénua chorando na ilha de Naxos, abandonada pelo 'herói' enquanto ele navegava para a glória. Das minhas lágrimas cresceu um jardim, regado pela minha mágoa! Das minhas memórias, fragmentos... \"",
         emoji: "🧍‍♀️"
     }
