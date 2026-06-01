@@ -19,10 +19,10 @@ import { showNotification, abrirPapiroHistoria } from './ui.js';
 // ─── Runtime state ────────────────────────────────────────────────────────────
 let objetosProximidade = []; // { key, pos, lido, ativo }
 
-let novelo_coletado       = false;
-let espada_coletada       = false;
+let novelo_coletado = false;
+let espada_coletada = false;
 let estatua_girl_coletada = false;
-let portaDesbloqueada     = false;
+let portaDesbloqueada = false;
 
 export let portaSaida = null; // door leaf assigned by door.js
 
@@ -158,9 +158,9 @@ export function abrirPopupCuriosidade(entry) {
     if (!dados) return;
 
     _popupAtivoEntry = entry;
-    document.getElementById('curiosidade-icone').textContent  = dados.icone;
+    document.getElementById('curiosidade-icone').textContent = dados.icone;
     document.getElementById('curiosidade-titulo').textContent = dados.titulo;
-    document.getElementById('curiosidade-texto').textContent  = dados.texto;
+    document.getElementById('curiosidade-texto').textContent = dados.texto;
     document.getElementById('curiosidade-overlay').style.display = 'flex';
 
     S.setPaused(true);
@@ -233,12 +233,12 @@ function abrirPortaSaida() {
     showNotification('🚪 A porta de saída abriu-se! Encontra a saída do labirinto!');
 
     const duracao = 1800;
-    const inicio  = performance.now();
+    const inicio = performance.now();
     const a0 = portaSaida.rotation.y;
     const a1 = a0 - Math.PI * 0.5;
 
     function animarPorta(now) {
-        const t    = Math.min((now - inicio) / duracao, 1);
+        const t = Math.min((now - inicio) / duracao, 1);
         const ease = 1 - Math.pow(1 - t, 3);
         portaSaida.rotation.y = a0 + (a1 - a0) * ease;
         if (t < 1) requestAnimationFrame(animarPorta);
@@ -250,15 +250,15 @@ function abrirPortaSaida() {
 export function popularCena() {
     // Collectibles — cyan ring, model + ring vanish on pickup, opens story papiro
     // adicionarObjetoFixo(path, posX, posY, posZ, grausY, escala, isColecionavel, idColecionavel)
-    adicionarObjetoFixo('assets/elements/novelo_final.glb', 17.22, 0.6, -1,    212, 5, true, 0);
-    adicionarObjetoFixo('assets/elements/espada.glb',       17.04, 1,  2.27,  13, 1, true, 1);
-    adicionarObjetoFixo('assets/elements/estatua_girl.glb', 24.29, 1.7,  7.7,   180, 1, true, 2);
+    adicionarObjetoFixo('assets/elements/novelo_final.glb', 17.22, 0.6, -1, 212, 5, true, 0);
+    adicionarObjetoFixo('assets/elements/espada.glb', 17.04, 1, 2.27, 13, 1, true, 1);
+    adicionarObjetoFixo('assets/elements/estatua_girl.glb', -17.00, 1.7, 1.91, 280, 1, true, 2);
 
     // Non-collectibles — curiosity popup on proximity, model stays
     // adicionarNaoColecionavel(path, posX, posY, posZ, grausX, grausY, grausZ, escala, popupKey)
-    adicionarNaoColecionavel('assets/elements/minotauro.glb',         -8.88, 0, -21.21, 0, 13, 0, 0.2, 'minotauro');
-    adicionarNaoColecionavel('assets/elements/dolphin_sculpture.glb',  -21.49, -0.001, -15.16, 0, 146.9, 0, 1, 'dolphin_sculpture');
-    adicionarNaoColecionavel('assets/elements/amfora.glb',             -21.61, 0, 29.56, -90, 0, 0, 0.25, 'amfora');
+    adicionarNaoColecionavel('assets/elements/minotauro.glb', -8.88, 0, -21.21, 0, 13, 0, 0.2, 'minotauro');
+    adicionarNaoColecionavel('assets/elements/dolphin_sculpture.glb', -21.49, -0.001, -15.16, 0, 146.9, 0, 1, 'dolphin_sculpture');
+    adicionarNaoColecionavel('assets/elements/amfora.glb', -21.61, 0, 29.56, -90, 0, 0, 0.25, 'amfora');
 
     // Instructions whisp at the start position
     criarWhispInstrucoes();
@@ -308,13 +308,13 @@ export function criarWhispInstrucoes() {
     for (let i = 0; i < 14; i++) {
         const p = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), pirilampoMat);
         p.userData = {
-            angle:      Math.random() * Math.PI * 2,
-            speed:      (0.005 + Math.random() * 0.01) * (Math.random() > 0.5 ? 1 : -1),
+            angle: Math.random() * Math.PI * 2,
+            speed: (0.005 + Math.random() * 0.01) * (Math.random() > 0.5 ? 1 : -1),
             baseRadius: 0.20 + Math.random() * 0.35,
-            radiusFreq: 0.3  + Math.random() * 0.6,
-            baseY:      (Math.random() - 0.5) * 0.05,
-            floatSpeed: 0.5  + Math.random() * 0.7,
-            phase:      Math.random() * Math.PI * 2
+            radiusFreq: 0.3 + Math.random() * 0.6,
+            baseY: (Math.random() - 0.5) * 0.05,
+            floatSpeed: 0.5 + Math.random() * 0.7,
+            phase: Math.random() * Math.PI * 2
         };
         pirilamposGroup.add(p);
     }
