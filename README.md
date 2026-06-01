@@ -3,7 +3,12 @@
 Projeto para a cadeira de **Introdução à Computação Gráfica (ICG)**.  
 Um jogo 3D de exploração na primeira pessoa situado no Labirinto de Creta — inspirado na **Lenda do Minotauro** e na **Lenda de Dédalo**.
 
+## 🎬 Demo
+
+[![Vê o gameplay completo](https://img.youtube.com/vi/m_1TzljFPsM/maxresdefault.jpg)](https://youtu.be/m_1TzljFPsM)
+
 ---
+
 
 ## 🏛️ Conceito e História
 
